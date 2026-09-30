@@ -13,17 +13,13 @@
         .graph-container {
             background: #ffffff;
             border-radius: 8px;
-            padding: 10px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
-            height: 70vh;
-            width: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-        .graph-container svg {
-            width: 100% !important;
-            height: 100% !important;
-            max-width: none !important;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: auto;
         }
         .code-box {
             background-color: #272822;
@@ -38,13 +34,14 @@
     </style>
     <!-- Mermaid JS -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.8.0/dist/mermaid.min.js"></script>
-    <!-- svg-pan-zoom JS -->
-    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
 </head>
 <body>
 
 <nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container-fluid px-4">
+    <div class="container">
         <a class="navbar-brand font-weight-bold" href="/">
             📊 Excel Graph Generator
         </a>
@@ -54,9 +51,9 @@
     </div>
 </nav>
 
-<div class="container-fluid px-4">
+<div class="container">
     <div class="row justify-content-center">
-        <div class="col-12">
+        <div class="col-md-10">
 
             <!-- Upload Card -->
             <div class="card mb-4 shadow-sm">
@@ -98,24 +95,24 @@
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <div class="card text-center bg-light shadow-sm">
-                            <div class="card-body py-2">
-                                <h6 class="text-muted mb-1">Fichier analysé</h6>
+                            <div class="card-body">
+                                <h6 class="text-muted">Fichier analysé</h6>
                                 <h5 class="text-primary mb-0" th:text="${fileName}">data.xlsx</h5>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card text-center bg-light shadow-sm">
-                            <div class="card-body py-2">
-                                <h6 class="text-muted mb-1">Nombre de nœuds</h6>
+                            <div class="card-body">
+                                <h6 class="text-muted">Nombre de nœuds</h6>
                                 <h3 class="text-success mb-0" th:text="${nodeCount}">0</h3>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card text-center bg-light shadow-sm">
-                            <div class="card-body py-2">
-                                <h6 class="text-muted mb-1">Nombre de flux (liens)</h6>
+                            <div class="card-body">
+                                <h6 class="text-muted">Nombre de flux (liens)</h6>
                                 <h3 class="text-info mb-0" th:text="${edgeCount}">0</h3>
                             </div>
                         </div>
@@ -124,19 +121,14 @@
 
                 <!-- Graph Visualization -->
                 <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Visualisation du Graphe</h5>
-                        <div class="d-flex align-items-center gap-2">
-                            <!-- Zoom Controls -->
-                            <div class="btn-group btn-group-sm" role="group" aria-label="Contrôles de Zoom">
-                                <button type="button" class="btn btn-light" id="btn-zoom-in" title="Zoom avant">🔍 +</button>
-                                <button type="button" class="btn btn-light" id="btn-zoom-out" title="Zoom arrière">🔍 -</button>
-                                <button type="button" class="btn btn-light" id="btn-zoom-reset" title="Réinitialiser le zoom">🔄 Réinit</button>
-                            </div>
-                            <button class="btn btn-light btn-sm" onclick="downloadMermaidSvg()">💾 Télécharger SVG</button>
+                        <div>
+                            <button class="btn btn-light btn-sm me-2" onclick="downloadMermaidSvg()">💾 Télécharger SVG</button>
+                            <button class="btn btn-outline-light btn-sm" onclick="downloadTextFile(document.getElementById('mermaid-raw').innerText, 'graph.mmd')">📜 Code Mermaid</button>
                         </div>
                     </div>
-                    <div class="card-body p-2 text-center">
+                    <div class="card-body text-center">
                         <div class="graph-container" id="graph-container">
                             <pre class="mermaid" id="mermaid-rendered" th:text="${graphData.mermaidCode}"></pre>
                         </div>
@@ -209,54 +201,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    let panZoomInstance = null;
-
-    mermaid.initialize({
-        startOnLoad: false,
-        theme: 'default',
-        securityLevel: 'loose'
-    });
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const mermaidElement = document.getElementById('mermaid-rendered');
-        if (mermaidElement) {
-            mermaid.run({
-                nodes: [mermaidElement],
-                postRenderCallback: function (id) {
-                    const svgElement = document.querySelector('#graph-container svg');
-                    if (svgElement) {
-                        svgElement.style.width = '100%';
-                        svgElement.style.height = '100%';
-
-                        panZoomInstance = svgPanZoom(svgElement, {
-                            zoomEnabled: true,
-                            controlIconsEnabled: false,
-                            fit: true,
-                            center: true,
-                            minZoom: 0.2,
-                            maxZoom: 10
-                        });
-
-                        document.getElementById('btn-zoom-in')?.addEventListener('click', function() {
-                            if (panZoomInstance) panZoomInstance.zoomIn();
-                        });
-                        document.getElementById('btn-zoom-out')?.addEventListener('click', function() {
-                            if (panZoomInstance) panZoomInstance.zoomOut();
-                        });
-                        document.getElementById('btn-zoom-reset')?.addEventListener('click', function() {
-                            if (panZoomInstance) {
-                                panZoomInstance.resetZoom();
-                                panZoomInstance.resetPan();
-                                panZoomInstance.fit();
-                                panZoomInstance.center();
-                            }
-                        });
-                    }
-                }
-            });
-        }
-    });
-
     function downloadTextFile(text, filename) {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const link = document.createElement('a');
