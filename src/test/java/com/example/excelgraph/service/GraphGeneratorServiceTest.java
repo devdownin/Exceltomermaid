@@ -13,13 +13,13 @@ class GraphGeneratorServiceTest {
     private final GraphGeneratorService generatorService = new GraphGeneratorService();
 
     @Test
-    void testGenerateGraphResponse() {
+    void testGenerateGraphResponseFlowchartSyntax() {
         List<GraphEdge> edges = List.of(
             new GraphEdge("Sys A", "FTP", "Sys B"),
             new GraphEdge("Sys B", "REST", "Sys C")
         );
 
-        GraphResponse response = generatorService.generateGraphResponse(edges);
+        GraphResponse response = generatorService.generateGraphResponse(edges, "LR");
 
         assertNotNull(response);
         assertEquals(2, response.edges().size());
@@ -28,10 +28,13 @@ class GraphGeneratorServiceTest {
         assertTrue(response.nodes().contains("Sys B"));
         assertTrue(response.nodes().contains("Sys C"));
 
-        // Check Mermaid formatting
-        assertTrue(response.mermaidCode().contains("graph LR"));
-        assertTrue(response.mermaidCode().contains("\"Sys A\" -- \"FTP\" --> \"Sys B\""));
-        assertTrue(response.mermaidCode().contains("\"Sys B\" -- \"REST\" --> \"Sys C\""));
+        // Check Mermaid flowchart formatting
+        assertTrue(response.mermaidCode().contains("flowchart LR"));
+        assertTrue(response.mermaidCode().contains("N1[\"Sys A\"]"));
+        assertTrue(response.mermaidCode().contains("N2[\"Sys B\"]"));
+        assertTrue(response.mermaidCode().contains("N3[\"Sys C\"]"));
+        assertTrue(response.mermaidCode().contains("N1 -->|\"FTP\"| N2"));
+        assertTrue(response.mermaidCode().contains("N2 -->|\"REST\"| N3"));
 
         // Check DOT formatting
         assertTrue(response.dotCode().contains("digraph G {"));

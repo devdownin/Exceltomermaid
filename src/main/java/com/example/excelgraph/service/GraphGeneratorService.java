@@ -26,34 +26,45 @@ public class GraphGeneratorService {
             if (!edge.destination().isEmpty()) nodes.add(edge.destination());
         }
 
-        String mermaid = generateMermaidCode(edges, orientation);
+        String mermaid = generateMermaidCode(edges, nodes, orientation);
         String dot = generateDotCode(edges, orientation);
 
         return new GraphResponse(edges, nodes, mermaid, dot);
     }
 
-    private String generateMermaidCode(List<GraphEdge> edges, String orientation) {
-        StringBuilder sb = new StringBuilder("graph ").append(orientation).append("\n");
+    private String generateMermaidCode(List<GraphEdge> edges, Set<String> nodes, String orientation) {
+        StringBuilder sb = new StringBuilder("flowchart ").append(orientation).append("\n");
 
-        for (GraphEdge edge : edges) {
-            String src = sanitize(edge.source());
-            String dest = sanitize(edge.destination());
-            String flux = sanitize(edge.flux());
-
-            if (src.isEmpty() && dest.isEmpty()) continue;
-
-            if (flux.isEmpty()) {
-                sb.append(String.format("    \"%s\" --> \"%s\"\n", src, dest));
-            } else {
-                sb.append(String.format("    \"%s\" -- \"%s\" --> \"%s\"\n", src, flux, dest));
-            }
+        // Map each node name to a safe Mermaid identifier (e.g. N1, N2...)
+        Map<String, String> nodeToId = new LinkedHashMap<>();
+        int idCounter = 1;
+        for (String node : nodes) {
+            String nodeId = "N" + idCounter++;
+            nodeToId.put(node, nodeId);
+            sb.append(String.format("    %s[\"%s\"]\n", nodeId, sanitize(node)));
         }
 
-        // Add class definitions for flux styling
-        sb.append("\n    %% Custom styling based on flux types\n");
-        sb.append("    classDef rest fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;\n");
-        sb.append("    classDef kafka fill:#fff3e0,stroke:#f57c00,stroke-width:2px;\n");
-        sb.append("    classDef sql fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;\n");
+        sb.append("\n");
+
+        for (GraphEdge edge : edges) {
+            String srcId = nodeToId.get(edge.source());
+            String destId = nodeToId.get(edge.destination());
+            String flux = sanitize(edge.flux());
+
+            if (srcId == null && destId == null) continue;
+
+            if (srcId != null && destId != null) {
+                if (flux.isEmpty()) {
+                    sb.append(String.format("    %s --> %s\n", srcId, destId));
+                } else {
+                    sb.append(String.format("    %s -->|\"%s\"| %s\n", srcId, flux, destId));
+                }
+            } else if (srcId != null) {
+                sb.append(String.format("    %s\n", srcId));
+            } else {
+                sb.append(String.format("    %s\n", destId));
+            }
+        }
 
         return sb.toString();
     }
