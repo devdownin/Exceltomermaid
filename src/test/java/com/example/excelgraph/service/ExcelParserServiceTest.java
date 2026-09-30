@@ -53,6 +53,23 @@ class ExcelParserServiceTest {
     }
 
     @Test
+    void testParseSampleFlowsFromClasspath() throws Exception {
+        try (InputStream is = getClass().getResourceAsStream("/sample-flows.xlsx")) {
+            assertNotNull(is, "sample-flows.xlsx should be available on classpath");
+            List<GraphEdge> edges = excelParserService.parseExcel(is);
+
+            assertEquals(6, edges.size());
+            assertEquals("E-Commerce Web", edges.get(0).source());
+            assertEquals("REST /orders", edges.get(0).flux());
+            assertEquals("Order Service", edges.get(0).destination());
+
+            assertEquals("Inventory Service", edges.get(5).source());
+            assertEquals("SQL Query", edges.get(5).flux());
+            assertEquals("PostgreSQL Database", edges.get(5).destination());
+        }
+    }
+
+    @Test
     void testParseExcelWithoutExplicitHeadersFallback() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (Workbook workbook = new XSSFWorkbook()) {
