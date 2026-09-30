@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Graphe depuis Excel</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .graph-container {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+            height: 75vh;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .graph-container svg {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+        }
+        .code-box {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+    <!-- Mermaid JS -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.8.0/dist/mermaid.min.js"></script>
+    <!-- svg-pan-zoom JS -->
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand font-weight-bold" href="/">
+            📊 Excel Graph Generator
+        </a>
+        <a href="/sample-flows.xlsx" class="btn btn-outline-light btn-sm" download>
+            📥 Télécharger un modèle Excel exemple
+        </a>
+    </div>
+</nav>
+
+<div class="container-fluid px-4">
+    <div class="row justify-content-center">
+        <div class="col-12">
+
+            <!-- Upload Card -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Importer un fichier Excel (.xlsx, .xls)</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted">
+                        Le fichier Excel doit contenir 4 colonnes principales : <strong>Source</strong>, <strong>Flux</strong>, <strong>Destination</strong>, et optionnellement <strong>Composant</strong>.
+                    </p>
+                    <form th:action="@{/upload}" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label for="file" class="form-label fw-bold">Fichier Excel</label>
+                            <input class="form-control" type="file" id="file" name="file" accept=".xlsx, .xls" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="orientation" class="form-label fw-bold">Orientation du Graphe</label>
+                            <select class="form-select" id="orientation" name="orientation">
+                                <option value="LR" th:selected="${orientation == 'LR'}">Horizontal (Gauche ➔ Droite)</option>
+                                <option value="TD" th:selected="${orientation == 'TD'}">Vertical (Haut ➔ Bas)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-success w-100">Générer le graphe</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Error Alert -->
+            <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>Erreur : </strong> <span th:text="${error}">Message d'erreur</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- Results Section -->
+            <div th:if="${graphData != null}">
+                <!-- Summary Card -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card text-center bg-light shadow-sm">
+                            <div class="card-body py-2">
+                                <h6 class="text-muted mb-1">Fichier analysé</h6>
+                                <h5 class="text-primary mb-0" th:text="${fileName}">data.xlsx</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center bg-light shadow-sm">
+                            <div class="card-body py-2">
+                                <h6 class="text-muted mb-1">Nombre de nœuds</h6>
+                                <h3 class="text-success mb-0" th:text="${nodeCount}">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center bg-light shadow-sm">
+                            <div class="card-body py-2">
+                                <h6 class="text-muted mb-1">Nombre de flux (liens)</h6>
+                                <h3 class="text-info mb-0" th:text="${edgeCount}">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph Visualization -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h5 class="mb-0">Visualisation du Graphe</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- Zoom Controls -->
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Contrôles de Zoom">
+                                <button type="button" class="btn btn-light" id="btn-zoom-in" title="Zoom avant">🔍 +</button>
+                                <button type="button" class="btn btn-light" id="btn-zoom-out" title="Zoom arrière">🔍 -</button>
+                                <button type="button" class="btn btn-light" id="btn-zoom-reset" title="Réinitialiser le zoom">🔄 Réinit</button>
+                            </div>
+                            <button class="btn btn-light btn-sm" onclick="downloadMermaidSvg()">💾 Télécharger SVG</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-2 text-center">
+                        <div class="graph-container" id="graph-container">
+                            <pre class="mermaid" id="mermaid-rendered" th:text="${graphData.mermaidCode}"></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edge Details Table & Code View -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <ul class="nav nav-tabs card-header-tabs" id="graphTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active text-dark" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-view" type="button" role="tab">Tableau des flux</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link text-white" id="mermaid-tab" data-bs-toggle="tab" data-bs-target="#mermaid-view" type="button" role="tab">Code Mermaid</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link text-white" id="dot-tab" data-bs-toggle="tab" data-bs-target="#dot-view" type="button" role="tab">Code Graphviz DOT</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="graphTabContent">
+                            <!-- Table view -->
+                            <div class="tab-pane fade show active" id="table-view" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Source</th>
+                                                <th>Flux</th>
+                                                <th>Destination</th>
+                                                <th>Composant</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr th:each="edge, stat : ${graphData.edges}">
+                                                <td th:text="${stat.count}">1</td>
+                                                <td><span class="badge bg-primary" th:text="${edge.source}">Source</span></td>
+                                                <td><span class="badge bg-secondary" th:text="${edge.flux}">Flux</span></td>
+                                                <td><span class="badge bg-success" th:text="${edge.destination}">Destination</span></td>
+                                                <td><span class="badge bg-info text-dark" th:text="${edge.component}">Composant</span></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- Mermaid code view -->
+                            <div class="tab-pane fade" id="mermaid-view" role="tabpanel">
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="downloadTextFile(document.getElementById('mermaid-raw').innerText, 'graph.mmd')">Télécharger .mmd</button>
+                                </div>
+                                <div class="code-box" id="mermaid-raw" th:text="${graphData.mermaidCode}"></div>
+                            </div>
+                            <!-- DOT code view -->
+                            <div class="tab-pane fade" id="dot-view" role="tabpanel">
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="downloadTextFile(document.getElementById('dot-raw').innerText, 'graph.dot')">Télécharger .dot</button>
+                                </div>
+                                <div class="code-box" id="dot-raw" th:text="${graphData.dotCode}"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let panZoomInstance = null;
+
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose'
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const mermaidElement = document.getElementById('mermaid-rendered');
+        if (mermaidElement) {
+            mermaid.run({
+                nodes: [mermaidElement],
+                postRenderCallback: function (id) {
+                    const svgElement = document.querySelector('#graph-container svg');
+                    if (svgElement) {
+                        svgElement.style.width = '100%';
+                        svgElement.style.height = '100%';
+
+                        panZoomInstance = svgPanZoom(svgElement, {
+                            zoomEnabled: true,
+                            controlIconsEnabled: false,
+                            fit: true,
+                            center: true,
+                            minZoom: 0.2,
+                            maxZoom: 10
+                        });
+
+                        document.getElementById('btn-zoom-in')?.addEventListener('click', function() {
+                            if (panZoomInstance) panZoomInstance.zoomIn();
+                        });
+                        document.getElementById('btn-zoom-out')?.addEventListener('click', function() {
+                            if (panZoomInstance) panZoomInstance.zoomOut();
+                        });
+                        document.getElementById('btn-zoom-reset')?.addEventListener('click', function() {
+                            if (panZoomInstance) {
+                                panZoomInstance.resetZoom();
+                                panZoomInstance.resetPan();
+                                panZoomInstance.fit();
+                                panZoomInstance.center();
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    });
+
+    function downloadTextFile(text, filename) {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
+    function downloadMermaidSvg() {
+        const svgElement = document.querySelector('#graph-container svg');
+        if (!svgElement) {
+            alert('Aucun graphique SVG à télécharger.');
+            return;
+        }
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'graph.svg';
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+</script>
+</body>
+</html>
