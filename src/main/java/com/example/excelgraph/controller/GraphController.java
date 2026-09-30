@@ -24,12 +24,18 @@ public class GraphController {
     }
 
     @GetMapping("/")
-    public String index() {
+    public String index(Model model) {
+        model.addAttribute("orientation", "LR");
         return "index";
     }
 
     @PostMapping("/upload")
-    public String uploadExcel(@RequestParam("file") MultipartFile file, Model model) {
+    public String uploadExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "orientation", defaultValue = "LR") String orientation,
+            Model model) {
+        model.addAttribute("orientation", orientation);
+
         if (file.isEmpty()) {
             model.addAttribute("error", "Veuillez sélectionner un fichier Excel valide.");
             return "index";
@@ -37,7 +43,7 @@ public class GraphController {
 
         try {
             List<GraphEdge> edges = excelParserService.parseExcel(file.getInputStream());
-            GraphResponse response = graphGeneratorService.generateGraphResponse(edges);
+            GraphResponse response = graphGeneratorService.generateGraphResponse(edges, orientation);
 
             model.addAttribute("graphData", response);
             model.addAttribute("fileName", file.getOriginalFilename());
@@ -52,14 +58,16 @@ public class GraphController {
 
     @PostMapping("/api/graph/upload")
     @ResponseBody
-    public ResponseEntity<?> apiUploadExcel(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> apiUploadExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "orientation", defaultValue = "LR") String orientation) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Fichier vide ou absent.");
         }
 
         try {
             List<GraphEdge> edges = excelParserService.parseExcel(file.getInputStream());
-            GraphResponse response = graphGeneratorService.generateGraphResponse(edges);
+            GraphResponse response = graphGeneratorService.generateGraphResponse(edges, orientation);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Erreur lors de l'analyse: " + e.getMessage());
