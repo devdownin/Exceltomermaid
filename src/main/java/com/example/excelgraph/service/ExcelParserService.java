@@ -10,10 +10,32 @@ import java.util.*;
 @Service
 public class ExcelParserService {
 
+    public List<String> getSheetNames(InputStream inputStream) throws Exception {
+        List<String> names = new ArrayList<>();
+        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+            int numberOfSheets = workbook.getNumberOfSheets();
+            for (int i = 0; i < numberOfSheets; i++) {
+                names.add(workbook.getSheetName(i));
+            }
+        }
+        return names;
+    }
+
     public List<GraphEdge> parseExcel(InputStream inputStream) throws Exception {
+        return parseExcel(inputStream, 0);
+    }
+
+    public List<GraphEdge> parseExcel(InputStream inputStream, int sheetIndex) throws Exception {
         List<GraphEdge> edges = new ArrayList<>();
         try (Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = workbook.getSheetAt(0);
+            int totalSheets = workbook.getNumberOfSheets();
+            if (totalSheets == 0) return edges;
+
+            if (sheetIndex < 0 || sheetIndex >= totalSheets) {
+                sheetIndex = 0;
+            }
+
+            Sheet sheet = workbook.getSheetAt(sheetIndex);
             if (sheet == null || sheet.getPhysicalNumberOfRows() == 0) {
                 return edges;
             }
@@ -23,7 +45,6 @@ public class ExcelParserService {
                 return edges;
             }
 
-            // Find header row indices for source, flux, destination, composant
             Row headerRow = rowIterator.next();
             int sourceCol = -1;
             int fluxCol = -1;
@@ -43,7 +64,6 @@ public class ExcelParserService {
                 }
             }
 
-            // Fallback if headers are not explicitly named: use cols 0, 1, 2, 3
             if (sourceCol == -1) sourceCol = 0;
             if (fluxCol == -1) fluxCol = 1;
             if (destCol == -1) destCol = 2;

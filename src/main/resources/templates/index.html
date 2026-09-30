@@ -35,6 +35,10 @@
             overflow-y: auto;
             white-space: pre-wrap;
         }
+        .search-highlight {
+            outline: 3px solid #ff9800 !important;
+            box-shadow: 0 0 15px #ff9800 !important;
+        }
     </style>
     <!-- Mermaid JS -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.8.0/dist/mermaid.min.js"></script>
@@ -68,18 +72,27 @@
                         Le fichier Excel doit contenir 4 colonnes principales : <strong>Source</strong>, <strong>Flux</strong>, <strong>Destination</strong>, et optionnellement <strong>Composant</strong>.
                     </p>
                     <form th:action="@{/upload}" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <label for="file" class="form-label fw-bold">Fichier Excel</label>
                             <input class="form-control" type="file" id="file" name="file" accept=".xlsx, .xls" required>
                         </div>
-                        <div class="col-md-3">
-                            <label for="orientation" class="form-label fw-bold">Orientation du Graphe</label>
-                            <select class="form-select" id="orientation" name="orientation">
-                                <option value="LR" th:selected="${orientation == 'LR'}">Horizontal (Gauche ➔ Droite)</option>
-                                <option value="TD" th:selected="${orientation == 'TD'}">Vertical (Haut ➔ Bas)</option>
+                        <div class="col-md-3" th:if="${sheets != null and sheets.size() > 1}">
+                            <label for="sheetIndex" class="form-label fw-bold">Feuille Excel</label>
+                            <select class="form-select" id="sheetIndex" name="sheetIndex">
+                                <option th:each="sheetName, stat : ${sheets}"
+                                        th:value="${stat.index}"
+                                        th:text="${sheetName}"
+                                        th:selected="${sheetIndex == stat.index}">Feuille 1</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label for="orientation" class="form-label fw-bold">Orientation</label>
+                            <select class="form-select" id="orientation" name="orientation">
+                                <option value="LR" th:selected="${orientation == 'LR'}">Horizontal (LR)</option>
+                                <option value="TD" th:selected="${orientation == 'TD'}">Vertical (TD)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
                             <button type="submit" class="btn btn-success w-100">Générer le graphe</button>
                         </div>
                     </form>
@@ -122,11 +135,16 @@
                     </div>
                 </div>
 
-                <!-- Graph Visualization -->
+                <!-- Graph Visualization Card -->
                 <div class="card mb-4 shadow-sm">
                     <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h5 class="mb-0">Visualisation du Graphe</h5>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <!-- Live Filter Input -->
+                            <div class="input-group input-group-sm" style="max-width: 220px;">
+                                <input type="text" id="filter-input" class="form-control" placeholder="Rechercher un nœud..." onkeyup="filterGraphNodes()">
+                                <button class="btn btn-light" type="button" onclick="clearFilter()">❌</button>
+                            </div>
                             <!-- Zoom Controls -->
                             <div class="btn-group btn-group-sm" role="group" aria-label="Contrôles de Zoom">
                                 <button type="button" class="btn btn-light" id="btn-zoom-in" title="Zoom avant">🔍 +</button>
@@ -163,7 +181,7 @@
                             <!-- Table view -->
                             <div class="tab-pane fade show active" id="table-view" role="tabpanel">
                                 <div class="table-responsive">
-                                    <table class="table table-striped table-hover align-middle">
+                                    <table class="table table-striped table-hover align-middle" id="edges-table">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>#</th>
@@ -258,6 +276,42 @@
             });
         }
     });
+
+    function filterGraphNodes() {
+        const term = document.getElementById('filter-input').value.toLowerCase().trim();
+
+        // Highlight nodes in SVG
+        const nodeElements = document.querySelectorAll('#graph-container svg .node');
+        nodeElements.forEach(node => {
+            const text = node.textContent.toLowerCase();
+            if (term !== '' && text.includes(term)) {
+                node.style.opacity = '1';
+                node.style.filter = 'drop-shadow(0 0 8px #00e676)';
+            } else if (term !== '') {
+                node.style.opacity = '0.25';
+                node.style.filter = 'none';
+            } else {
+                node.style.opacity = '1';
+                node.style.filter = 'none';
+            }
+        });
+
+        // Filter details table rows
+        const tableRows = document.querySelectorAll('#edges-table tbody tr');
+        tableRows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (term === '' || text.includes(term)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function clearFilter() {
+        document.getElementById('filter-input').value = '';
+        filterGraphNodes();
+    }
 
     function downloadTextFile(text, filename) {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });

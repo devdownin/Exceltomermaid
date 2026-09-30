@@ -10,6 +10,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 
 @Controller
@@ -33,8 +34,10 @@ public class GraphController {
     public String uploadExcel(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "orientation", defaultValue = "LR") String orientation,
+            @RequestParam(value = "sheetIndex", defaultValue = "0") int sheetIndex,
             Model model) {
         model.addAttribute("orientation", orientation);
+        model.addAttribute("sheetIndex", sheetIndex);
 
         if (file.isEmpty()) {
             model.addAttribute("error", "Veuillez sélectionner un fichier Excel valide.");
@@ -42,9 +45,12 @@ public class GraphController {
         }
 
         try {
-            List<GraphEdge> edges = excelParserService.parseExcel(file.getInputStream());
+            byte[] fileBytes = file.getBytes();
+            List<String> sheets = excelParserService.getSheetNames(new ByteArrayInputStream(fileBytes));
+            List<GraphEdge> edges = excelParserService.parseExcel(new ByteArrayInputStream(fileBytes), sheetIndex);
             GraphResponse response = graphGeneratorService.generateGraphResponse(edges, orientation);
 
+            model.addAttribute("sheets", sheets);
             model.addAttribute("graphData", response);
             model.addAttribute("fileName", file.getOriginalFilename());
             model.addAttribute("edgeCount", edges.size());
@@ -60,13 +66,14 @@ public class GraphController {
     @ResponseBody
     public ResponseEntity<?> apiUploadExcel(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "orientation", defaultValue = "LR") String orientation) {
+            @RequestParam(value = "orientation", defaultValue = "LR") String orientation,
+            @RequestParam(value = "sheetIndex", defaultValue = "0") int sheetIndex) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Fichier vide ou absent.");
         }
 
         try {
-            List<GraphEdge> edges = excelParserService.parseExcel(file.getInputStream());
+            List<GraphEdge> edges = excelParserService.parseExcel(file.getInputStream(), sheetIndex);
             GraphResponse response = graphGeneratorService.generateGraphResponse(edges, orientation);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
