@@ -13,17 +13,30 @@
         .graph-container {
             background: #ffffff;
             border-radius: 8px;
-            padding: 10px;
+            padding: 15px;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
-            height: 75vh;
+            height: 80vh;
+            min-height: 600px;
             width: 100%;
             position: relative;
             overflow: hidden;
+        }
+        .graph-container pre {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .graph-container svg {
             width: 100% !important;
             height: 100% !important;
             max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         .code-box {
             background-color: #272822;
@@ -34,10 +47,6 @@
             max-height: 300px;
             overflow-y: auto;
             white-space: pre-wrap;
-        }
-        .search-highlight {
-            outline: 3px solid #ff9800 !important;
-            box-shadow: 0 0 15px #ff9800 !important;
         }
     </style>
     <!-- Mermaid JS -->
@@ -245,17 +254,37 @@
                 postRenderCallback: function (id) {
                     const svgElement = document.querySelector('#graph-container svg');
                     if (svgElement) {
-                        svgElement.style.width = '100%';
-                        svgElement.style.height = '100%';
+                        try {
+                            const bbox = svgElement.getBBox();
+                            if (bbox && bbox.width > 0 && bbox.height > 0 && !svgElement.getAttribute('viewBox')) {
+                                svgElement.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+                            }
+                        } catch (e) {
+                            console.error('Error calculating viewBox:', e);
+                        }
+
+                        svgElement.removeAttribute('height');
+                        svgElement.style.setProperty('max-width', 'none', 'important');
+                        svgElement.style.setProperty('width', '100%', 'important');
+                        svgElement.style.setProperty('height', '100%', 'important');
 
                         panZoomInstance = svgPanZoom(svgElement, {
                             zoomEnabled: true,
                             controlIconsEnabled: false,
                             fit: true,
                             center: true,
-                            minZoom: 0.2,
-                            maxZoom: 10
+                            minZoom: 0.1,
+                            maxZoom: 10,
+                            zoomScaleSensitivity: 0.3
                         });
+
+                        setTimeout(() => {
+                            if (panZoomInstance) {
+                                panZoomInstance.resize();
+                                panZoomInstance.fit();
+                                panZoomInstance.center();
+                            }
+                        }, 100);
 
                         document.getElementById('btn-zoom-in')?.addEventListener('click', function() {
                             if (panZoomInstance) panZoomInstance.zoomIn();
