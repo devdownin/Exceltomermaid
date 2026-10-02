@@ -369,8 +369,8 @@
 
         // 2. Hide/show edge paths and edge labels connecting to external nodes
         const showLabels = document.getElementById('live-labels-toggle')?.checked ?? true;
-        const allPaths = Array.from(svg.querySelectorAll('.edgePaths path, .flowchart-link'));
-        const allLabels = Array.from(svg.querySelectorAll('.edgeLabels .edgeLabel'));
+        const allPaths = Array.from(svg.querySelectorAll('.edgePaths > path, .edgePaths > g, .flowchart-link'));
+        const allLabels = Array.from(svg.querySelectorAll('.edgeLabels > g'));
 
         allPaths.forEach((path, index) => {
             const classList = path.getAttribute('class') || '';
