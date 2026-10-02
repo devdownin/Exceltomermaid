@@ -1,8 +1,12 @@
 package com.example.excelgraph.model;
 
-public record GraphEdge(String source, String flux, String destination, String component) {
+public record GraphEdge(String source, String flux, String destination, String component, boolean isExternal) {
+    public GraphEdge(String source, String flux, String destination, String component) {
+        this(source, flux, destination, component, false);
+    }
+
     public GraphEdge(String source, String flux, String destination) {
-        this(source, flux, destination, "");
+        this(source, flux, destination, "", false);
     }
 
     public GraphEdge {

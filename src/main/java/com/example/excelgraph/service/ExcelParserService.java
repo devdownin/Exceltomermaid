@@ -83,19 +83,19 @@ public class ExcelParserService {
 
                 if (!destination.trim().isEmpty()) {
                     if (!source.isEmpty() || !destination.isEmpty()) {
-                        edges.add(new GraphEdge(source, flux, destination, component));
+                        edges.add(new GraphEdge(source, flux, destination, component, false));
                     }
                 } else {
                     boolean addedFromExterne = false;
                     for (int extCol : externeCols) {
                         String extDest = getCellValueAsString(row.getCell(extCol));
                         if (!extDest.trim().isEmpty()) {
-                            edges.add(new GraphEdge(source, flux, extDest, component));
+                            edges.add(new GraphEdge(source, flux, extDest, component, true));
                             addedFromExterne = true;
                         }
                     }
                     if (!addedFromExterne && (!source.isEmpty() || !flux.isEmpty())) {
-                        edges.add(new GraphEdge(source, flux, "", component));
+                        edges.add(new GraphEdge(source, flux, "", component, false));
                     }
                 }
             }

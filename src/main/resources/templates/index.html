@@ -164,6 +164,13 @@
                         </div>
                     </div>
                     <div class="card-body p-2 text-center">
+                        <!-- Legend Bar -->
+                        <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap mb-2 p-2 bg-light rounded border">
+                            <small class="fw-bold text-dark">Légende Nœuds :</small>
+                            <span class="badge" style="background-color: #e3f2fd; color: #0d47a1; border: 1px solid #1565c0;">🟦 Nœud Source</span>
+                            <span class="badge" style="background-color: #e8f5e9; color: #1b5e20; border: 1px solid #2e7d32;">🟩 Nœud Destination</span>
+                            <span class="badge" style="background-color: #fff3e0; color: #e65100; border: 1px solid #ef6c00;">🟧 Nœud Externe</span>
+                        </div>
                         <div class="graph-container" id="graph-container">
                             <pre class="mermaid" id="mermaid-rendered" th:text="${graphData.mermaidCode}"></pre>
                         </div>
@@ -205,7 +212,10 @@
                                                 <td th:text="${stat.count}">1</td>
                                                 <td><span class="badge bg-primary" th:text="${edge.source}">Source</span></td>
                                                 <td><span class="badge bg-secondary" th:text="${edge.flux}">Flux</span></td>
-                                                <td><span class="badge bg-success" th:text="${edge.destination}">Destination</span></td>
+                                                <td>
+                                                    <span th:class="${edge.isExternal ? 'badge bg-warning text-dark' : 'badge bg-success'}"
+                                                          th:text="${edge.destination}">Destination</span>
+                                                </td>
                                                 <td><span class="badge bg-info text-dark" th:text="${edge.component}">Composant</span></td>
                                             </tr>
                                         </tbody>

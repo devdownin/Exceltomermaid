@@ -32,18 +32,64 @@ public class GraphGeneratorService {
         return new GraphResponse(edges, nodes, mermaid, dot);
     }
 
+    private static final String[] PALETTE = {
+            "#0288d1", "#f57c00", "#388e3c", "#7b1fa2", "#c2185b", "#00796b", "#d32f2f", "#5d4037", "#455a64"
+    };
+
     private String generateMermaidCode(List<GraphEdge> edges, Set<String> nodes, String orientation) {
         StringBuilder sb = new StringBuilder("flowchart ").append(orientation).append("\n");
 
+        Set<String> externalNodes = new HashSet<>();
+        Set<String> standardDestNodes = new HashSet<>();
+        for (GraphEdge edge : edges) {
+            if (!edge.destination().isEmpty()) {
+                if (edge.isExternal()) {
+                    externalNodes.add(edge.destination());
+                } else {
+                    standardDestNodes.add(edge.destination());
+                }
+            }
+        }
+
         Map<String, String> nodeToId = new LinkedHashMap<>();
+        List<String> srcNodeIds = new ArrayList<>();
+        List<String> destNodeIds = new ArrayList<>();
+        List<String> extNodeIds = new ArrayList<>();
+
         int idCounter = 1;
         for (String node : nodes) {
             String nodeId = "N" + idCounter++;
             nodeToId.put(node, nodeId);
             sb.append(String.format("    %s[\"%s\"]\n", nodeId, sanitize(node)));
+
+            if (externalNodes.contains(node)) {
+                extNodeIds.add(nodeId);
+            } else if (standardDestNodes.contains(node)) {
+                destNodeIds.add(nodeId);
+            } else {
+                srcNodeIds.add(nodeId);
+            }
         }
 
         sb.append("\n");
+        sb.append("    classDef srcNode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1;\n");
+        sb.append("    classDef destNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;\n");
+        sb.append("    classDef extNode fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100;\n");
+
+        if (!srcNodeIds.isEmpty()) {
+            sb.append("    class ").append(String.join(",", srcNodeIds)).append(" srcNode;\n");
+        }
+        if (!destNodeIds.isEmpty()) {
+            sb.append("    class ").append(String.join(",", destNodeIds)).append(" destNode;\n");
+        }
+        if (!extNodeIds.isEmpty()) {
+            sb.append("    class ").append(String.join(",", extNodeIds)).append(" extNode;\n");
+        }
+
+        sb.append("\n");
+
+        Map<String, String> componentColors = buildComponentColorMap(edges);
+        List<String> edgeLinkColors = new ArrayList<>();
 
         for (GraphEdge edge : edges) {
             String srcId = nodeToId.get(edge.source());
@@ -61,6 +107,8 @@ public class GraphGeneratorService {
                 } else {
                     sb.append(String.format("    %s -->|\"%s\"| %s\n", srcId, label, destId));
                 }
+                String color = componentColors.getOrDefault(edge.component().toLowerCase(Locale.ROOT).trim(), "#333333");
+                edgeLinkColors.add(color);
             } else if (srcId != null) {
                 sb.append(String.format("    %s\n", srcId));
             } else {
@@ -68,7 +116,27 @@ public class GraphGeneratorService {
             }
         }
 
+        if (!edgeLinkColors.isEmpty()) {
+            sb.append("\n");
+            for (int i = 0; i < edgeLinkColors.size(); i++) {
+                sb.append(String.format("    linkStyle %d stroke:%s,stroke-width:2px;\n", i, edgeLinkColors.get(i)));
+            }
+        }
+
         return sb.toString();
+    }
+
+    private Map<String, String> buildComponentColorMap(List<GraphEdge> edges) {
+        Map<String, String> map = new LinkedHashMap<>();
+        int colorIdx = 0;
+        for (GraphEdge edge : edges) {
+            String compKey = edge.component().toLowerCase(Locale.ROOT).trim();
+            if (!compKey.isEmpty() && !map.containsKey(compKey)) {
+                map.put(compKey, PALETTE[colorIdx % PALETTE.length]);
+                colorIdx++;
+            }
+        }
+        return map;
     }
 
     private String buildMermaidLabel(String flux, String component) {
