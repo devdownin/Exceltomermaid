@@ -332,14 +332,47 @@
 
     function toggleExternalServices() {
         const show = document.getElementById('live-external-toggle').checked;
+        const svg = document.querySelector('#graph-container svg');
+        if (!svg) return;
 
-        // Toggle SVG external nodes
-        const extNodes = document.querySelectorAll('#graph-container svg .extNode');
+        // 1. Find external nodes and collect their node IDs (e.g. N1, N2, ...)
+        const extNodes = svg.querySelectorAll('.extNode');
+        const extNodeIds = new Set();
+
         extNodes.forEach(node => {
             node.style.display = show ? '' : 'none';
+            const dataId = node.getAttribute('data-id');
+            if (dataId) {
+                extNodeIds.add(dataId);
+            } else if (node.id) {
+                const match = node.id.match(/N\d+/);
+                if (match) extNodeIds.add(match[0]);
+            }
         });
 
-        // Toggle table rows for external services
+        // 2. Hide/show edge paths and edge labels connecting to external nodes
+        const allPaths = Array.from(svg.querySelectorAll('.edgePaths path, .flowchart-link'));
+        const allLabels = Array.from(svg.querySelectorAll('.edgeLabels .edgeLabel'));
+
+        allPaths.forEach((path, index) => {
+            const classList = path.getAttribute('class') || '';
+            let isExtPath = false;
+
+            extNodeIds.forEach(nodeId => {
+                if (classList.includes(`LS-${nodeId}`) || classList.includes(`LE-${nodeId}`)) {
+                    isExtPath = true;
+                }
+            });
+
+            if (isExtPath) {
+                path.style.display = show ? '' : 'none';
+                if (allLabels[index]) {
+                    allLabels[index].style.display = show ? '' : 'none';
+                }
+            }
+        });
+
+        // 3. Toggle table rows for external services
         const extRows = document.querySelectorAll('#edges-table tbody tr[data-external="true"]');
         extRows.forEach(row => {
             row.style.display = show ? '' : 'none';
