@@ -101,6 +101,14 @@
                                 <option value="TD" th:selected="${orientation == 'TD'}">Vertical (TD)</option>
                             </select>
                         </div>
+                        <div class="col-md-3">
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" id="includeExternal" name="includeExternal" value="true" th:checked="${includeExternal == null or includeExternal}">
+                                <label class="form-check-label fw-bold" for="includeExternal">
+                                    Afficher services externes
+                                </label>
+                            </div>
+                        </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-success w-100">Générer le graphe</button>
                         </div>
@@ -164,12 +172,18 @@
                         </div>
                     </div>
                     <div class="card-body p-2 text-center">
-                        <!-- Legend Bar -->
-                        <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap mb-2 p-2 bg-light rounded border">
-                            <small class="fw-bold text-dark">Légende Nœuds :</small>
-                            <span class="badge" style="background-color: #e3f2fd; color: #0d47a1; border: 1px solid #1565c0;">🟦 Nœud Source</span>
-                            <span class="badge" style="background-color: #e8f5e9; color: #1b5e20; border: 1px solid #2e7d32;">🟩 Nœud Destination</span>
-                            <span class="badge" style="background-color: #fff3e0; color: #e65100; border: 1px solid #ef6c00;">🟧 Nœud Externe</span>
+                        <!-- Legend & Toggle Bar -->
+                        <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-2 p-2 bg-light rounded border px-3">
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <small class="fw-bold text-dark">Légende Nœuds :</small>
+                                <span class="badge" style="background-color: #e3f2fd; color: #0d47a1; border: 1px solid #1565c0;">🟦 Nœud Source</span>
+                                <span class="badge" style="background-color: #e8f5e9; color: #1b5e20; border: 1px solid #2e7d32;">🟩 Nœud Destination</span>
+                                <span class="badge" style="background-color: #fff3e0; color: #e65100; border: 1px solid #ef6c00;">🟧 Nœud Externe</span>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="live-external-toggle" checked onchange="toggleExternalServices()">
+                                <label class="form-check-label fw-bold text-dark small" for="live-external-toggle">Afficher services externes</label>
+                            </div>
                         </div>
                         <div class="graph-container" id="graph-container">
                             <pre class="mermaid" id="mermaid-rendered" th:text="${graphData.mermaidCode}"></pre>
@@ -208,7 +222,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr th:each="edge, stat : ${graphData.edges}">
+                                            <tr th:each="edge, stat : ${graphData.edges}" th:data-external="${edge.isExternal}">
                                                 <td th:text="${stat.count}">1</td>
                                                 <td><span class="badge bg-primary" th:text="${edge.source}">Source</span></td>
                                                 <td><span class="badge bg-secondary" th:text="${edge.flux}">Flux</span></td>
@@ -315,6 +329,22 @@
             });
         }
     });
+
+    function toggleExternalServices() {
+        const show = document.getElementById('live-external-toggle').checked;
+
+        // Toggle SVG external nodes
+        const extNodes = document.querySelectorAll('#graph-container svg .extNode');
+        extNodes.forEach(node => {
+            node.style.display = show ? '' : 'none';
+        });
+
+        // Toggle table rows for external services
+        const extRows = document.querySelectorAll('#edges-table tbody tr[data-external="true"]');
+        extRows.forEach(row => {
+            row.style.display = show ? '' : 'none';
+        });
+    }
 
     function filterGraphNodes() {
         const term = document.getElementById('filter-input').value.toLowerCase().trim();

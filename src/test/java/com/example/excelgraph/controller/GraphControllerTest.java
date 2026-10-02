@@ -65,6 +65,47 @@ class GraphControllerTest {
     }
 
     @Test
+    void testUploadExcelFileWithIncludeExternalFalse() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Data");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Source");
+            header.createCell(1).setCellValue("Flux");
+            header.createCell(2).setCellValue("Destination");
+            header.createCell(3).setCellValue("Composant");
+            header.createCell(4).setCellValue("Externe");
+
+            // Row 1: Regular destination
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue("System 1");
+            row1.createCell(1).setCellValue("API Call");
+            row1.createCell(2).setCellValue("System 2");
+            row1.createCell(3).setCellValue("REST Client");
+
+            // Row 2: External destination (empty destination)
+            Row row2 = sheet.createRow(2);
+            row2.createCell(0).setCellValue("System 1");
+            row2.createCell(1).setCellValue("Ext Call");
+            row2.createCell(2).setCellValue("");
+            row2.createCell(3).setCellValue("SFTP");
+            row2.createCell(4).setCellValue("Partner Ext");
+
+            workbook.write(out);
+        }
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out.toByteArray());
+
+        mockMvc.perform(multipart("/upload").file(file).param("includeExternal", "false"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("index"))
+                .andExpect(model().attributeExists("graphData"))
+                .andExpect(model().attribute("edgeCount", 1))
+                .andExpect(model().attribute("includeExternal", false));
+    }
+
+    @Test
     void testApiUploadExcelFile() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (Workbook workbook = new XSSFWorkbook()) {

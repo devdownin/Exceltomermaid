@@ -27,6 +27,7 @@ public class GraphController {
     @GetMapping("/")
     public String index(Model model) {
         model.addAttribute("orientation", "LR");
+        model.addAttribute("includeExternal", true);
         return "index";
     }
 
@@ -35,9 +36,11 @@ public class GraphController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "orientation", defaultValue = "LR") String orientation,
             @RequestParam(value = "sheetIndex", defaultValue = "0") int sheetIndex,
+            @RequestParam(value = "includeExternal", defaultValue = "true") boolean includeExternal,
             Model model) {
         model.addAttribute("orientation", orientation);
         model.addAttribute("sheetIndex", sheetIndex);
+        model.addAttribute("includeExternal", includeExternal);
 
         if (file.isEmpty()) {
             model.addAttribute("error", "Veuillez sélectionner un fichier Excel valide.");
@@ -48,6 +51,9 @@ public class GraphController {
             byte[] fileBytes = file.getBytes();
             List<String> sheets = excelParserService.getSheetNames(new ByteArrayInputStream(fileBytes));
             List<GraphEdge> edges = excelParserService.parseExcel(new ByteArrayInputStream(fileBytes), sheetIndex);
+            if (!includeExternal) {
+                edges = edges.stream().filter(e -> !e.isExternal()).toList();
+            }
             GraphResponse response = graphGeneratorService.generateGraphResponse(edges, orientation);
 
             model.addAttribute("sheets", sheets);
@@ -67,13 +73,17 @@ public class GraphController {
     public ResponseEntity<?> apiUploadExcel(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "orientation", defaultValue = "LR") String orientation,
-            @RequestParam(value = "sheetIndex", defaultValue = "0") int sheetIndex) {
+            @RequestParam(value = "sheetIndex", defaultValue = "0") int sheetIndex,
+            @RequestParam(value = "includeExternal", defaultValue = "true") boolean includeExternal) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Fichier vide ou absent.");
         }
 
         try {
             List<GraphEdge> edges = excelParserService.parseExcel(file.getInputStream(), sheetIndex);
+            if (!includeExternal) {
+                edges = edges.stream().filter(e -> !e.isExternal()).toList();
+            }
             GraphResponse response = graphGeneratorService.generateGraphResponse(edges, orientation);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
