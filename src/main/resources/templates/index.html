@@ -53,6 +53,9 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.8.0/dist/mermaid.min.js"></script>
     <!-- svg-pan-zoom JS -->
     <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+    <!-- Vis.js Network CSS & JS -->
+    <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/dist/vis-network.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/vis-network.min.js"></script>
 </head>
 <body>
 
@@ -152,47 +155,108 @@
                     </div>
                 </div>
 
-                <!-- Graph Visualization Card -->
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <h5 class="mb-0">Visualisation du Graphe</h5>
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <!-- Live Filter Input -->
-                            <div class="input-group input-group-sm" style="max-width: 220px;">
-                                <input type="text" id="filter-input" class="form-control" placeholder="Rechercher un nœud..." onkeyup="filterGraphNodes()">
-                                <button class="btn btn-light" type="button" onclick="clearFilter()">❌</button>
+                <!-- Visualizer Selection Tabs -->
+                <ul class="nav nav-pills mb-3 gap-2" id="visualizer-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold" id="mermaid-view-tab" data-bs-toggle="pill" data-bs-target="#mermaid-container-view" type="button" role="tab">
+                            📐 Vue Statique (Mermaid)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold" id="visjs-view-tab" data-bs-toggle="pill" data-bs-target="#visjs-container-view" type="button" role="tab" onclick="initVisJsNetwork()">
+                            🌐 Vue Interactive Vis.js (Drag & Drop + Analyse d'Impact)
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="visualizer-tab-content">
+                    <!-- Mermaid Static Tab Pane -->
+                    <div class="tab-pane fade show active" id="mermaid-container-view" role="tabpanel">
+                        <div class="card mb-4 shadow-sm">
+                            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h5 class="mb-0">Visualisation du Graphe (Mermaid)</h5>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <!-- Live Filter Input -->
+                                    <div class="input-group input-group-sm" style="max-width: 220px;">
+                                        <input type="text" id="filter-input" class="form-control" placeholder="Rechercher un nœud..." onkeyup="filterGraphNodes()">
+                                        <button class="btn btn-light" type="button" onclick="clearFilter()">❌</button>
+                                    </div>
+                                    <!-- Zoom Controls -->
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Contrôles de Zoom">
+                                        <button type="button" class="btn btn-light" id="btn-zoom-in" title="Zoom avant">🔍 +</button>
+                                        <button type="button" class="btn btn-light" id="btn-zoom-out" title="Zoom arrière">🔍 -</button>
+                                        <button type="button" class="btn btn-light" id="btn-zoom-reset" title="Réinitialiser le zoom">🔄 Réinit</button>
+                                    </div>
+                                    <button class="btn btn-light btn-sm" onclick="downloadMermaidSvg()">💾 Télécharger SVG</button>
+                                </div>
                             </div>
-                            <!-- Zoom Controls -->
-                            <div class="btn-group btn-group-sm" role="group" aria-label="Contrôles de Zoom">
-                                <button type="button" class="btn btn-light" id="btn-zoom-in" title="Zoom avant">🔍 +</button>
-                                <button type="button" class="btn btn-light" id="btn-zoom-out" title="Zoom arrière">🔍 -</button>
-                                <button type="button" class="btn btn-light" id="btn-zoom-reset" title="Réinitialiser le zoom">🔄 Réinit</button>
+                            <div class="card-body p-2 text-center">
+                                <!-- Legend & Toggle Bar -->
+                                <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-2 p-2 bg-light rounded border px-3">
+                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <small class="fw-bold text-dark">Légende Nœuds :</small>
+                                        <span class="badge" style="background-color: #e3f2fd; color: #0d47a1; border: 1px solid #1565c0;">🟦 Nœud Source</span>
+                                        <span class="badge" style="background-color: #e8f5e9; color: #1b5e20; border: 1px solid #2e7d32;">🟩 Nœud Destination</span>
+                                        <span class="badge" style="background-color: #fff3e0; color: #e65100; border: 1px solid #ef6c00;">🟧 Nœud Externe</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <div class="form-check form-switch m-0">
+                                            <input class="form-check-input" type="checkbox" id="live-external-toggle" checked onchange="toggleExternalServices()">
+                                            <label class="form-check-label fw-bold text-dark small" for="live-external-toggle">Afficher services externes</label>
+                                        </div>
+                                        <div class="form-check form-switch m-0">
+                                            <input class="form-check-input" type="checkbox" id="live-labels-toggle" checked onchange="toggleEdgeLabels()">
+                                            <label class="form-check-label fw-bold text-dark small" for="live-labels-toggle">Afficher étiquettes de flux</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="graph-container" id="graph-container">
+                                    <pre class="mermaid" id="mermaid-rendered" th:text="${graphData.mermaidCode}"></pre>
+                                </div>
                             </div>
-                            <button class="btn btn-light btn-sm" onclick="downloadMermaidSvg()">💾 Télécharger SVG</button>
                         </div>
                     </div>
-                    <div class="card-body p-2 text-center">
-                        <!-- Legend & Toggle Bar -->
-                        <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-2 p-2 bg-light rounded border px-3">
-                            <div class="d-flex align-items-center gap-3 flex-wrap">
-                                <small class="fw-bold text-dark">Légende Nœuds :</small>
-                                <span class="badge" style="background-color: #e3f2fd; color: #0d47a1; border: 1px solid #1565c0;">🟦 Nœud Source</span>
-                                <span class="badge" style="background-color: #e8f5e9; color: #1b5e20; border: 1px solid #2e7d32;">🟩 Nœud Destination</span>
-                                <span class="badge" style="background-color: #fff3e0; color: #e65100; border: 1px solid #ef6c00;">🟧 Nœud Externe</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-3 flex-wrap">
-                                <div class="form-check form-switch m-0">
-                                    <input class="form-check-input" type="checkbox" id="live-external-toggle" checked onchange="toggleExternalServices()">
-                                    <label class="form-check-label fw-bold text-dark small" for="live-external-toggle">Afficher services externes</label>
+
+                    <!-- Vis.js Interactive Tab Pane -->
+                    <div class="tab-pane fade" id="visjs-container-view" role="tabpanel">
+                        <div class="card mb-4 shadow-sm">
+                            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h5 class="mb-0">🌐 Visualisation Interactive Vis.js (Drag & Drop + Dynamic Impact)</h5>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-light" id="vis-zoom-in" onclick="if(visNetwork) visNetwork.zoomIn();" title="Zoom avant">🔍 +</button>
+                                        <button type="button" class="btn btn-outline-light" id="vis-zoom-out" onclick="if(visNetwork) visNetwork.zoomOut();" title="Zoom arrière">🔍 -</button>
+                                        <button type="button" class="btn btn-outline-light" id="vis-fit" onclick="if(visNetwork) visNetwork.fit();" title="Ajuster la vue">🎯 Ajuster</button>
+                                    </div>
+                                    <div class="form-check form-switch m-0 text-white ms-2">
+                                        <input class="form-check-input" type="checkbox" id="vis-physics-toggle" checked onchange="toggleVisPhysics(this.checked)">
+                                        <label class="form-check-label fw-bold small text-white" for="vis-physics-toggle">Physique (Alignement)</label>
+                                    </div>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="resetImpactAnalysis()">🔄 Réinitialiser Sélection / Impact</button>
                                 </div>
-                                <div class="form-check form-switch m-0">
-                                    <input class="form-check-input" type="checkbox" id="live-labels-toggle" checked onchange="toggleEdgeLabels()">
-                                    <label class="form-check-label fw-bold text-dark small" for="live-labels-toggle">Afficher étiquettes de flux</label>
+                            </div>
+                            <div class="card-body p-2">
+                                <div class="row g-2">
+                                    <!-- Vis.js Graph canvas -->
+                                    <div class="col-lg-8 col-xl-9">
+                                        <div class="graph-container border rounded" id="visjs-network-container" style="height: 700px; background-color: #fafafa;"></div>
+                                    </div>
+                                    <!-- Dynamic Impact Analysis Panel -->
+                                    <div class="col-lg-4 col-xl-3">
+                                        <div class="card border-primary h-100 shadow-sm">
+                                            <div class="card-header bg-primary text-white py-2 fw-bold d-flex justify-content-between align-items-center">
+                                                <span>⚡ Analyse d'Impact</span>
+                                                <span class="badge bg-light text-primary" id="impact-badge-total">0 nœuds</span>
+                                            </div>
+                                            <div class="card-body p-3 overflow-auto" style="max-height: 650px;" id="impact-panel-body">
+                                                <div class="alert alert-info small mb-0">
+                                                    💡 <strong>Astuce :</strong> Cliquez sur n'importe quel nœud dans le graphe interactif pour analyser son impact amont et aval.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="graph-container" id="graph-container">
-                            <pre class="mermaid" id="mermaid-rendered" th:text="${graphData.mermaidCode}"></pre>
                         </div>
                     </div>
                 </div>
@@ -455,6 +519,361 @@
         link.download = 'graph.svg';
         link.click();
         URL.revokeObjectURL(link.href);
+    }
+
+    /* =============================================================
+       Vis.js Interactive Network & Impact Analysis Implementation
+       ============================================================= */
+    let visNetwork = null;
+    let visNodesDataSet = null;
+    let visEdgesDataSet = null;
+    let rawEdgesData = [];
+    let rawNodesSet = new Set();
+
+    function initVisJsNetwork() {
+        if (visNetwork) {
+            setTimeout(() => visNetwork.fit(), 200);
+            return;
+        }
+
+        const container = document.getElementById('visjs-network-container');
+        if (!container) return;
+
+        // Parse edges from details table in HTML
+        const tableRows = document.querySelectorAll('#edges-table tbody tr');
+        rawEdgesData = [];
+        const nodeMap = new Map();
+
+        tableRows.forEach((row, idx) => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 4) {
+                const source = cells[1].textContent.trim();
+                const flux = cells[2].textContent.trim();
+                const destination = cells[3].textContent.trim();
+                const component = cells[4] ? cells[4].textContent.trim() : '';
+                const isExternal = row.getAttribute('data-external') === 'true';
+
+                if (source && destination) {
+                    rawEdgesData.push({
+                        id: 'edge_' + idx,
+                        from: source,
+                        to: destination,
+                        flux: flux,
+                        component: component,
+                        isExternal: isExternal
+                    });
+
+                    if (!nodeMap.has(source)) {
+                        nodeMap.set(source, { id: source, label: source, type: 'source' });
+                    }
+
+                    if (!nodeMap.has(destination)) {
+                        nodeMap.set(destination, { id: destination, label: destination, type: isExternal ? 'external' : 'destination' });
+                    } else if (isExternal) {
+                        nodeMap.get(destination).type = 'external';
+                    }
+                }
+            }
+        });
+
+        // Build Vis.js DataSet
+        const nodesArray = [];
+        nodeMap.forEach((val, key) => {
+            let colorObj = { background: '#e8f5e9', border: '#2e7d32' };
+            if (val.type === 'source') {
+                colorObj = { background: '#e3f2fd', border: '#1565c0' };
+            } else if (val.type === 'external') {
+                colorObj = { background: '#fff3e0', border: '#ef6c00' };
+            }
+
+            nodesArray.push({
+                id: key,
+                label: key,
+                shape: 'box',
+                margin: 12,
+                color: {
+                    background: colorObj.background,
+                    border: colorObj.border,
+                    highlight: { background: '#ffe0b2', border: '#e65100' }
+                },
+                font: { face: 'Arial', size: 14, color: '#1e293b', bold: 'true' },
+                shadow: true,
+                borderWidth: 2
+            });
+        });
+
+        const edgesArray = rawEdgesData.map(e => {
+            let labelText = e.flux;
+            if (e.component) labelText += '\n[' + e.component + ']';
+
+            return {
+                id: e.id,
+                from: e.from,
+                to: e.to,
+                label: labelText,
+                arrows: 'to',
+                font: { align: 'horizontal', size: 11, color: '#475569', strokeWidth: 2, strokeColor: '#ffffff' },
+                color: { color: '#64748b', highlight: '#0288d1' },
+                width: 2,
+                smooth: { type: 'cubicBezier', roundness: 0.2 }
+            };
+        });
+
+        visNodesDataSet = new vis.DataSet(nodesArray);
+        visEdgesDataSet = new vis.DataSet(edgesArray);
+
+        const data = { nodes: visNodesDataSet, edges: visEdgesDataSet };
+        const options = {
+            nodes: {
+                shadow: true
+            },
+            edges: {
+                shadow: false
+            },
+            physics: {
+                enabled: true,
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {
+                    gravitationalConstant: -50,
+                    centralGravity: 0.01,
+                    springLength: 100,
+                    springConstant: 0.08
+                }
+            },
+            interaction: {
+                hover: true,
+                dragNodes: true,
+                zoomView: true,
+                dragView: true
+            }
+        };
+
+        visNetwork = new vis.Network(container, data, options);
+
+        visNetwork.on('selectNode', function (params) {
+            if (params.nodes.length > 0) {
+                const selectedNodeId = params.nodes[0];
+                performImpactAnalysis(selectedNodeId);
+            }
+        });
+
+        visNetwork.on('deselectNode', function () {
+            resetImpactAnalysis();
+        });
+    }
+
+    function toggleVisPhysics(enabled) {
+        if (visNetwork) {
+            visNetwork.setOptions({ physics: { enabled: enabled } });
+        }
+    }
+
+    function performImpactAnalysis(startNodeId) {
+        if (!rawEdgesData || rawEdgesData.length === 0) return;
+
+        // BFS Downstream (Impacted Targets)
+        const downstreamNodes = new Set();
+        const downstreamEdges = new Set();
+        const queueDown = [startNodeId];
+
+        while (queueDown.length > 0) {
+            const current = queueDown.shift();
+            rawEdgesData.forEach(e => {
+                if (e.from === current) {
+                    downstreamEdges.add(e.id);
+                    if (!downstreamNodes.has(e.to) && e.to !== startNodeId) {
+                        downstreamNodes.add(e.to);
+                        queueDown.push(e.to);
+                    }
+                }
+            });
+        }
+
+        // BFS Upstream (Dependencies / Sources)
+        const upstreamNodes = new Set();
+        const upstreamEdges = new Set();
+        const queueUp = [startNodeId];
+
+        while (queueUp.length > 0) {
+            const current = queueUp.shift();
+            rawEdgesData.forEach(e => {
+                if (e.to === current) {
+                    upstreamEdges.add(e.id);
+                    if (!upstreamNodes.has(e.from) && e.from !== startNodeId) {
+                        upstreamNodes.add(e.from);
+                        queueUp.push(e.from);
+                    }
+                }
+            });
+        }
+
+        // Highlight nodes & dim un-related ones
+        const allNodes = visNodesDataSet.get();
+        const updatedNodes = allNodes.map(node => {
+            if (node.id === startNodeId) {
+                return {
+                    ...node,
+                    color: { background: '#ffeb3b', border: '#f57f17' },
+                    borderWidth: 4,
+                    opacity: 1
+                };
+            } else if (downstreamNodes.has(node.id)) {
+                return {
+                    ...node,
+                    color: { background: '#ffcdd2', border: '#c62828' },
+                    borderWidth: 3,
+                    opacity: 1
+                };
+            } else if (upstreamNodes.has(node.id)) {
+                return {
+                    ...node,
+                    color: { background: '#bbdefb', border: '#1565c0' },
+                    borderWidth: 3,
+                    opacity: 1
+                };
+            } else {
+                return {
+                    ...node,
+                    opacity: 0.25
+                };
+            }
+        });
+        visNodesDataSet.update(updatedNodes);
+
+        // Highlight edges
+        const allEdges = visEdgesDataSet.get();
+        const updatedEdges = allEdges.map(edge => {
+            if (downstreamEdges.has(edge.id)) {
+                return { ...edge, color: { color: '#d32f2f' }, width: 3, opacity: 1 };
+            } else if (upstreamEdges.has(edge.id)) {
+                return { ...edge, color: { color: '#1976d2' }, width: 3, opacity: 1 };
+            } else {
+                return { ...edge, color: { color: '#e2e8f0' }, opacity: 0.15 };
+            }
+        });
+        visEdgesDataSet.update(updatedEdges);
+
+        // Update UI Panel
+        updateImpactPanelUI(startNodeId, Array.from(downstreamNodes), Array.from(upstreamNodes));
+    }
+
+    function updateImpactPanelUI(selectedNode, downstreamList, upstreamList) {
+        const body = document.getElementById('impact-panel-body');
+        const badge = document.getElementById('impact-badge-total');
+        if (!body) return;
+
+        const totalImpacted = downstreamList.length + upstreamList.length;
+        if (badge) badge.textContent = `${totalImpacted} nœuds liés`;
+
+        let html = `
+            <div class="mb-3 p-2 bg-light border rounded">
+                <small class="text-muted d-block font-weight-bold">Nœud analysé :</small>
+                <h6 class="mb-0 text-dark fw-bold">🎯 ${selectedNode}</h6>
+            </div>
+        `;
+
+        // Downstream Impact
+        html += `
+            <div class="mb-3">
+                <h6 class="text-danger small fw-bold mb-2">
+                    🔻 Impacts Aval / Target (${downstreamList.length}) :
+                </h6>
+        `;
+        if (downstreamList.length === 0) {
+            html += `<span class="text-muted small fst-italic">Aucune dépendance aval.</span>`;
+        } else {
+            html += `<ul class="list-group list-group-flush small">`;
+            downstreamList.forEach(item => {
+                html += `<li class="list-group-item px-2 py-1 list-group-item-danger border-0 mb-1 rounded">⚠️ ${item}</li>`;
+            });
+            html += `</ul>`;
+        }
+        html += `</div>`;
+
+        // Upstream Dependencies
+        html += `
+            <div class="mb-3">
+                <h6 class="text-primary small fw-bold mb-2">
+                    🔺 Dépendances Amont / Source (${upstreamList.length}) :
+                </h6>
+        `;
+        if (upstreamList.length === 0) {
+            html += `<span class="text-muted small fst-italic">Aucune source amont.</span>`;
+        } else {
+            html += `<ul class="list-group list-group-flush small">`;
+            upstreamList.forEach(item => {
+                html += `<li class="list-group-item px-2 py-1 list-group-item-primary border-0 mb-1 rounded">🔹 ${item}</li>`;
+            });
+            html += `</ul>`;
+        }
+        html += `</div>`;
+
+        body.innerHTML = html;
+    }
+
+    function resetImpactAnalysis() {
+        if (!visNodesDataSet || !visEdgesDataSet) return;
+
+        // Restore node colors
+        const tableRows = document.querySelectorAll('#edges-table tbody tr');
+        const nodeTypes = new Map();
+
+        tableRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 4) {
+                const source = cells[1].textContent.trim();
+                const destination = cells[3].textContent.trim();
+                const isExternal = row.getAttribute('data-external') === 'true';
+
+                if (!nodeTypes.has(source)) nodeTypes.set(source, 'source');
+                if (!nodeTypes.has(destination)) nodeTypes.set(destination, isExternal ? 'external' : 'destination');
+            }
+        });
+
+        const allNodes = visNodesDataSet.get();
+        const resetNodes = allNodes.map(node => {
+            const type = nodeTypes.get(node.id) || 'destination';
+            let colorObj = { background: '#e8f5e9', border: '#2e7d32' };
+            if (type === 'source') {
+                colorObj = { background: '#e3f2fd', border: '#1565c0' };
+            } else if (type === 'external') {
+                colorObj = { background: '#fff3e0', border: '#ef6c00' };
+            }
+
+            return {
+                ...node,
+                color: {
+                    background: colorObj.background,
+                    border: colorObj.border,
+                    highlight: { background: '#ffe0b2', border: '#e65100' }
+                },
+                borderWidth: 2,
+                opacity: 1
+            };
+        });
+        visNodesDataSet.update(resetNodes);
+
+        // Restore edges
+        const allEdges = visEdgesDataSet.get();
+        const resetEdges = allEdges.map(edge => ({
+            ...edge,
+            color: { color: '#64748b', highlight: '#0288d1' },
+            width: 2,
+            opacity: 1
+        }));
+        visEdgesDataSet.update(resetEdges);
+
+        // Clear UI Panel
+        const body = document.getElementById('impact-panel-body');
+        const badge = document.getElementById('impact-badge-total');
+        if (badge) badge.textContent = `0 nœuds`;
+        if (body) {
+            body.innerHTML = `
+                <div class="alert alert-info small mb-0">
+                    💡 <strong>Astuce :</strong> Cliquez sur n'importe quel nœud dans le graphe interactif pour analyser son impact amont et aval.
+                </div>
+            `;
+        }
     }
 </script>
 </body>
