@@ -77,6 +77,45 @@ class ExcelParserServiceTest {
     }
 
     @Test
+    void testParseExcelWithEmptyDestinationAndExterneColumns() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Data");
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("Source");
+            headerRow.createCell(1).setCellValue("Flux");
+            headerRow.createCell(2).setCellValue("Destination");
+            headerRow.createCell(3).setCellValue("Composant");
+            headerRow.createCell(4).setCellValue("Externe");
+            headerRow.createCell(5).setCellValue("Externe(2)");
+            headerRow.createCell(6).setCellValue("Externe(3)");
+
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue("App Primary");
+            row1.createCell(1).setCellValue("Sync Data");
+            row1.createCell(2).setCellValue(""); // Empty Destination
+            row1.createCell(3).setCellValue("FTP");
+            row1.createCell(4).setCellValue("Partner Ext 1");
+            row1.createCell(5).setCellValue("Partner Ext 2");
+            row1.createCell(6).setCellValue("Partner Ext 3");
+
+            workbook.write(out);
+        }
+
+        InputStream inputStream = new ByteArrayInputStream(out.toByteArray());
+        List<GraphEdge> edges = excelParserService.parseExcel(inputStream);
+
+        assertEquals(3, edges.size());
+        assertEquals("App Primary", edges.get(0).source());
+        assertEquals("Sync Data", edges.get(0).flux());
+        assertEquals("Partner Ext 1", edges.get(0).destination());
+        assertEquals("FTP", edges.get(0).component());
+
+        assertEquals("Partner Ext 2", edges.get(1).destination());
+        assertEquals("Partner Ext 3", edges.get(2).destination());
+    }
+
+    @Test
     void testParseExcelWithoutExplicitHeadersFallback() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (Workbook workbook = new XSSFWorkbook()) {

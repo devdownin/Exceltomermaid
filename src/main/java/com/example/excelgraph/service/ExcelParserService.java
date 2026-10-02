@@ -50,6 +50,7 @@ public class ExcelParserService {
             int fluxCol = -1;
             int destCol = -1;
             int compCol = -1;
+            List<Integer> externeCols = new ArrayList<>();
 
             for (Cell cell : headerRow) {
                 String val = getCellValueAsString(cell).toLowerCase(Locale.ROOT).trim();
@@ -61,6 +62,8 @@ public class ExcelParserService {
                     destCol = cell.getColumnIndex();
                 } else if (val.contains("comp") || val.contains("techno") || val.contains("proto") || val.contains("outil") || val.contains("moyen")) {
                     compCol = cell.getColumnIndex();
+                } else if (val.contains("externe") && externeCols.size() < 15) {
+                    externeCols.add(cell.getColumnIndex());
                 }
             }
 
@@ -78,8 +81,22 @@ public class ExcelParserService {
                 String destination = getCellValueAsString(row.getCell(destCol));
                 String component = getCellValueAsString(row.getCell(compCol));
 
-                if (!source.isEmpty() || !destination.isEmpty()) {
-                    edges.add(new GraphEdge(source, flux, destination, component));
+                if (!destination.trim().isEmpty()) {
+                    if (!source.isEmpty() || !destination.isEmpty()) {
+                        edges.add(new GraphEdge(source, flux, destination, component));
+                    }
+                } else {
+                    boolean addedFromExterne = false;
+                    for (int extCol : externeCols) {
+                        String extDest = getCellValueAsString(row.getCell(extCol));
+                        if (!extDest.trim().isEmpty()) {
+                            edges.add(new GraphEdge(source, flux, extDest, component));
+                            addedFromExterne = true;
+                        }
+                    }
+                    if (!addedFromExterne && (!source.isEmpty() || !flux.isEmpty())) {
+                        edges.add(new GraphEdge(source, flux, "", component));
+                    }
                 }
             }
         }
