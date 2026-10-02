@@ -56,6 +56,8 @@
     <!-- Vis.js Network CSS & JS -->
     <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/dist/vis-network.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/vis-network.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 </head>
 <body>
 
@@ -576,29 +578,59 @@
             }
         });
 
+        // Helper to infer node category & icon
+        function getNodeIconAndStyle(nodeName, type) {
+            const lower = nodeName.toLowerCase();
+            if (lower.includes('database') || lower.includes('db') || lower.includes('postgres') || lower.includes('oracle') || lower.includes('mysql') || lower.includes('sql')) {
+                return { icon: '🗄️', bg: '#f3e5f5', border: '#7b1fa2', fontColor: '#4a148c' };
+            } else if (lower.includes('web') || lower.includes('ui') || lower.includes('app') || lower.includes('front') || lower.includes('client')) {
+                return { icon: '💻', bg: '#e3f2fd', border: '#1565c0', fontColor: '#0d47a1' };
+            } else if (lower.includes('kafka') || lower.includes('mq') || lower.includes('queue') || lower.includes('event')) {
+                return { icon: '📬', bg: '#fff3e0', border: '#e65100', fontColor: '#bf360c' };
+            } else if (type === 'external') {
+                return { icon: '🌐', bg: '#fff8e1', border: '#ff8f00', fontColor: '#ff6f00' };
+            } else if (type === 'source') {
+                return { icon: '🚀', bg: '#e0f2f1', border: '#00695c', fontColor: '#004d40' };
+            } else {
+                return { icon: '⚙️', bg: '#e8f5e9', border: '#2e7d32', fontColor: '#1b5e20' };
+            }
+        }
+
+        // Helper to infer edge color & pattern based on flux/component protocol
+        function getEdgeProtocolStyle(flux, component) {
+            const combined = (flux + ' ' + component).toLowerCase();
+            if (combined.includes('kafka') || combined.includes('event') || combined.includes('mq') || combined.includes('queue')) {
+                return { color: '#f57c00', dashes: true, width: 2.5 }; // Orange dashed
+            } else if (combined.includes('sql') || combined.includes('db') || combined.includes('jdbc') || combined.includes('postgres')) {
+                return { color: '#388e3c', dashes: false, width: 2.5 }; // Green solid
+            } else if (combined.includes('grpc') || combined.includes('proto')) {
+                return { color: '#7b1fa2', dashes: [4, 4], width: 2.5 }; // Purple dotted
+            } else if (combined.includes('rest') || combined.includes('http') || combined.includes('api')) {
+                return { color: '#0288d1', dashes: false, width: 2.5 }; // Blue solid
+            } else {
+                return { color: '#64748b', dashes: false, width: 2 }; // Default Slate grey
+            }
+        }
+
         // Build Vis.js DataSet
         const nodesArray = [];
         nodeMap.forEach((val, key) => {
-            let colorObj = { background: '#e8f5e9', border: '#2e7d32' };
-            if (val.type === 'source') {
-                colorObj = { background: '#e3f2fd', border: '#1565c0' };
-            } else if (val.type === 'external') {
-                colorObj = { background: '#fff3e0', border: '#ef6c00' };
-            }
+            const style = getNodeIconAndStyle(key, val.type);
 
             nodesArray.push({
                 id: key,
-                label: key,
+                label: style.icon + ' ' + key,
                 shape: 'box',
-                margin: 12,
+                margin: { top: 12, right: 16, bottom: 12, left: 16 },
                 color: {
-                    background: colorObj.background,
-                    border: colorObj.border,
-                    highlight: { background: '#ffe0b2', border: '#e65100' }
+                    background: style.bg,
+                    border: style.border,
+                    highlight: { background: '#ffecb3', border: '#ff6f00' }
                 },
-                font: { face: 'Arial', size: 14, color: '#1e293b', bold: 'true' },
-                shadow: true,
-                borderWidth: 2
+                font: { face: 'Segoe UI, Arial, sans-serif', size: 14, color: style.fontColor, bold: 'true' },
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.12)', size: 6, x: 2, y: 3 },
+                borderWidth: 2,
+                borderRadius: 6
             });
         });
 
@@ -606,16 +638,19 @@
             let labelText = e.flux;
             if (e.component) labelText += '\n[' + e.component + ']';
 
+            const protoStyle = getEdgeProtocolStyle(e.flux, e.component);
+
             return {
                 id: e.id,
                 from: e.from,
                 to: e.to,
                 label: labelText,
-                arrows: 'to',
-                font: { align: 'horizontal', size: 11, color: '#475569', strokeWidth: 2, strokeColor: '#ffffff' },
-                color: { color: '#64748b', highlight: '#0288d1' },
-                width: 2,
-                smooth: { type: 'cubicBezier', roundness: 0.2 }
+                arrows: { to: { enabled: true, scaleFactor: 0.9 } },
+                font: { align: 'horizontal', size: 11, color: '#334155', strokeWidth: 3, strokeColor: '#ffffff', face: 'sans-serif' },
+                color: { color: protoStyle.color, highlight: '#d32f2f' },
+                width: protoStyle.width,
+                dashes: protoStyle.dashes,
+                smooth: { type: 'cubicBezier', roundness: 0.25 }
             };
         });
 
@@ -830,22 +865,51 @@
             }
         });
 
+        function getNodeStyle(nodeName, type) {
+            const lower = nodeName.toLowerCase();
+            if (lower.includes('database') || lower.includes('db') || lower.includes('postgres') || lower.includes('oracle') || lower.includes('mysql') || lower.includes('sql')) {
+                return { bg: '#f3e5f5', border: '#7b1fa2' };
+            } else if (lower.includes('web') || lower.includes('ui') || lower.includes('app') || lower.includes('front') || lower.includes('client')) {
+                return { bg: '#e3f2fd', border: '#1565c0' };
+            } else if (lower.includes('kafka') || lower.includes('mq') || lower.includes('queue') || lower.includes('event')) {
+                return { bg: '#fff3e0', border: '#e65100' };
+            } else if (type === 'external') {
+                return { bg: '#fff8e1', border: '#ff8f00' };
+            } else if (type === 'source') {
+                return { bg: '#e0f2f1', border: '#00695c' };
+            } else {
+                return { bg: '#e8f5e9', border: '#2e7d32' };
+            }
+        }
+
+        function getEdgeColor(edgeObj) {
+            const row = rawEdgesData.find(r => r.id === edgeObj.id);
+            if (!row) return '#64748b';
+            const combined = (row.flux + ' ' + row.component).toLowerCase();
+            if (combined.includes('kafka') || combined.includes('event') || combined.includes('mq') || combined.includes('queue')) {
+                return '#f57c00';
+            } else if (combined.includes('sql') || combined.includes('db') || combined.includes('jdbc') || combined.includes('postgres')) {
+                return '#388e3c';
+            } else if (combined.includes('grpc') || combined.includes('proto')) {
+                return '#7b1fa2';
+            } else if (combined.includes('rest') || combined.includes('http') || combined.includes('api')) {
+                return '#0288d1';
+            } else {
+                return '#64748b';
+            }
+        }
+
         const allNodes = visNodesDataSet.get();
         const resetNodes = allNodes.map(node => {
             const type = nodeTypes.get(node.id) || 'destination';
-            let colorObj = { background: '#e8f5e9', border: '#2e7d32' };
-            if (type === 'source') {
-                colorObj = { background: '#e3f2fd', border: '#1565c0' };
-            } else if (type === 'external') {
-                colorObj = { background: '#fff3e0', border: '#ef6c00' };
-            }
+            const style = getNodeStyle(node.id, type);
 
             return {
                 ...node,
                 color: {
-                    background: colorObj.background,
-                    border: colorObj.border,
-                    highlight: { background: '#ffe0b2', border: '#e65100' }
+                    background: style.bg,
+                    border: style.border,
+                    highlight: { background: '#ffecb3', border: '#ff6f00' }
                 },
                 borderWidth: 2,
                 opacity: 1
@@ -857,8 +921,8 @@
         const allEdges = visEdgesDataSet.get();
         const resetEdges = allEdges.map(edge => ({
             ...edge,
-            color: { color: '#64748b', highlight: '#0288d1' },
-            width: 2,
+            color: { color: getEdgeColor(edge), highlight: '#d32f2f' },
+            width: 2.5,
             opacity: 1
         }));
         visEdgesDataSet.update(resetEdges);
