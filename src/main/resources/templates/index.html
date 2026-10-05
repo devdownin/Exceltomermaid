@@ -117,6 +117,49 @@
             white-space: pre-wrap;
         }
 
+        /* Fullscreen Canvas Styling */
+        .vis-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            border-radius: 0 !important;
+            background-color: #ffffff !important;
+        }
+
+        /* Context Menu Styling */
+        .custom-context-menu {
+            position: fixed;
+            display: none;
+            z-index: 10000;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            padding: 6px 0;
+            min-width: 180px;
+        }
+
+        .custom-context-menu button {
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .custom-context-menu button:hover {
+            background: #f1f5f9;
+            color: #2563eb;
+        }
+
         /* Custom Scrollbars */
         ::-webkit-scrollbar {
             width: 6px;
@@ -263,7 +306,7 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="visjs-view-tab" data-bs-toggle="pill" data-bs-target="#visjs-container-view" type="button" role="tab" onclick="initVisJsNetwork()">
-                            🌐 Vue Interactive Vis.js (Drag & Drop + Analyse d'Impact Pro)
+                            🌐 Vue Interactive Vis.js (Layouts, Search & Context Menu)
                         </button>
                     </li>
                 </ul>
@@ -319,21 +362,66 @@
                     <!-- Vis.js Interactive Tab Pane -->
                     <div class="tab-pane fade" id="visjs-container-view" role="tabpanel">
                         <div class="card mb-4 shadow-sm">
-                            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <h5 class="mb-0">🌐 Visualisation Interactive Vis.js (Drag & Drop + Dynamic Impact)</h5>
+                            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+                                <div class="d-flex align-items-center gap-3 flex-wrap">
+                                    <h5 class="mb-0 fs-6 fw-bold">🌐 Visualisation Interactive Vis.js</h5>
+
+                                    <!-- Layout Selector -->
+                                    <div class="d-flex align-items-center gap-1">
+                                        <small class="text-white-50 fw-semibold">Layout:</small>
+                                        <select class="form-select form-select-sm py-1" id="vis-layout-select" onchange="changeVisLayout(this.value)" style="width: auto; font-size: 0.8rem;">
+                                            <option value="physics" selected>🌀 Physique Libre</option>
+                                            <option value="hierarchical-LR">➡️ Hiérarchique (G ➔ D)</option>
+                                            <option value="hierarchical-TD">⬇️ Hiérarchique (H ➔ B)</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Vis.js Smart Search -->
+                                    <div class="input-group input-group-sm" style="max-width: 200px;">
+                                        <input type="text" id="vis-search-input" class="form-control" placeholder="Focus nœud..." onkeyup="searchAndFocusVisNode(event)">
+                                        <button class="btn btn-primary btn-sm" type="button" onclick="executeVisSearch()">🔍</button>
+                                    </div>
+                                </div>
+
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <!-- Zoom & Controls -->
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button type="button" class="btn btn-outline-light" id="vis-zoom-in" onclick="zoomVisNetwork(1.2)" title="Zoom avant">🔍 +</button>
                                         <button type="button" class="btn btn-outline-light" id="vis-zoom-out" onclick="zoomVisNetwork(0.8)" title="Zoom arrière">🔍 -</button>
                                         <button type="button" class="btn btn-outline-light" id="vis-fit" onclick="if(visNetwork) visNetwork.fit();" title="Ajuster la vue">🎯 Ajuster</button>
                                     </div>
-                                    <div class="form-check form-switch m-0 text-white ms-2">
-                                        <input class="form-check-input" type="checkbox" id="vis-physics-toggle" checked onchange="toggleVisPhysics(this.checked)">
-                                        <label class="form-check-label fw-bold small text-white" for="vis-physics-toggle">Physique (Alignement)</label>
-                                    </div>
-                                    <button class="btn btn-outline-warning btn-sm" onclick="resetImpactAnalysis()">🔄 Réinitialiser Sélection / Impact</button>
+
+                                    <button class="btn btn-outline-info btn-sm" id="vis-fullscreen-btn" onclick="toggleVisFullscreen()" title="Plein Écran">⛶ Plein Écran</button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="resetImpactAnalysis()" title="Réinitialiser">🔄 Réinit</button>
                                 </div>
                             </div>
+
+                            <!-- Sub-Header: Protocol Edge Filters & Legend -->
+                            <div class="card-body p-2 border-bottom bg-light d-flex align-items-center justify-content-between flex-wrap gap-2 px-3">
+                                <div class="d-flex align-items-center gap-3 flex-wrap">
+                                    <small class="fw-bold text-dark">Filtre de Protocoles :</small>
+                                    <div class="form-check form-check-inline m-0">
+                                        <input class="form-check-input" type="checkbox" id="proto-rest" value="rest" checked onchange="filterVisEdgesByProtocol()">
+                                        <label class="form-check-label small fw-semibold text-primary" for="proto-rest">🔵 REST / HTTP</label>
+                                    </div>
+                                    <div class="form-check form-check-inline m-0">
+                                        <input class="form-check-input" type="checkbox" id="proto-kafka" value="kafka" checked onchange="filterVisEdgesByProtocol()">
+                                        <label class="form-check-label small fw-semibold text-warning" for="proto-kafka">🟠 Kafka / MQ</label>
+                                    </div>
+                                    <div class="form-check form-check-inline m-0">
+                                        <input class="form-check-input" type="checkbox" id="proto-sql" value="sql" checked onchange="filterVisEdgesByProtocol()">
+                                        <label class="form-check-label small fw-semibold text-success" for="proto-sql">🟢 SQL / DB</label>
+                                    </div>
+                                    <div class="form-check form-check-inline m-0">
+                                        <input class="form-check-input" type="checkbox" id="proto-grpc" value="grpc" checked onchange="filterVisEdgesByProtocol()">
+                                        <label class="form-check-label small fw-semibold" style="color: #7b1fa2;" for="proto-grpc">🟣 gRPC</label>
+                                    </div>
+                                </div>
+                                <div class="text-muted small fst-italic">
+                                    💡 <em>Astuce: Clic droit sur un nœud pour le menu contextuel.</em>
+                                </div>
+                            </div>
+
                             <div class="card-body p-2">
                                 <div class="row g-2">
                                     <!-- Vis.js Graph canvas -->
@@ -429,6 +517,14 @@
     </div>
 </div>
 
+<!-- Custom Right-Click Context Menu -->
+<div id="vis-context-menu" class="custom-context-menu">
+    <button onclick="contextActionImpact()">⚡ Analyser l'impact</button>
+    <button onclick="contextActionFocus()">🔍 Zoomer sur ce nœud</button>
+    <button onclick="contextActionHide()">👁️ Masquer ce nœud</button>
+    <button onclick="contextActionCopy()">📋 Copier le nom</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let panZoomInstance = null;
@@ -515,7 +611,6 @@
         const svg = document.querySelector('#graph-container svg');
         if (!svg) return;
 
-        // 1. Find external nodes and collect their node IDs (e.g. N1, N2, ...)
         const extNodes = svg.querySelectorAll('.extNode');
         const extNodeIds = new Set();
 
@@ -530,7 +625,6 @@
             }
         });
 
-        // 2. Hide/show edge paths and edge labels connecting to external nodes
         const showLabels = document.getElementById('live-labels-toggle')?.checked ?? true;
         const allPaths = Array.from(svg.querySelectorAll('.edgePaths > path, .edgePaths > g, .flowchart-link'));
         const allLabels = Array.from(svg.querySelectorAll('.edgeLabels > g'));
@@ -553,7 +647,6 @@
             }
         });
 
-        // 3. Toggle table rows for external services
         const extRows = document.querySelectorAll('#edges-table tbody tr[data-external="true"]');
         extRows.forEach(row => {
             row.style.display = show ? '' : 'none';
@@ -563,7 +656,6 @@
     function filterGraphNodes() {
         const term = document.getElementById('filter-input').value.toLowerCase().trim();
 
-        // Highlight nodes in SVG
         const nodeElements = document.querySelectorAll('#graph-container svg .node');
         nodeElements.forEach(node => {
             const text = node.textContent.toLowerCase();
@@ -579,7 +671,6 @@
             }
         });
 
-        // Filter details table rows
         const tableRows = document.querySelectorAll('#edges-table tbody tr');
         tableRows.forEach(row => {
             const text = row.textContent.toLowerCase();
@@ -621,13 +712,13 @@
     }
 
     /* =============================================================
-       Vis.js Interactive Network & Impact Analysis Implementation
+       Vis.js Interactive Network, Layouts & Context Menu
        ============================================================= */
     let visNetwork = null;
     let visNodesDataSet = null;
     let visEdgesDataSet = null;
     let rawEdgesData = [];
-    let rawNodesSet = new Set();
+    let selectedContextNodeId = null;
 
     function initVisJsNetwork() {
         if (visNetwork) {
@@ -638,7 +729,6 @@
         const container = document.getElementById('visjs-network-container');
         if (!container) return;
 
-        // Parse edges from details table in HTML
         const tableRows = document.querySelectorAll('#edges-table tbody tr');
         rawEdgesData = [];
         const nodeMap = new Map();
@@ -675,7 +765,6 @@
             }
         });
 
-        // Helper to infer node category & icon
         function getNodeIconAndStyle(nodeName, type) {
             const lower = nodeName.toLowerCase();
             if (lower.includes('database') || lower.includes('db') || lower.includes('postgres') || lower.includes('oracle') || lower.includes('mysql') || lower.includes('sql')) {
@@ -693,23 +782,19 @@
             }
         }
 
-        // Helper to infer edge color & pattern based on flux/component protocol
         function getEdgeProtocolStyle(flux, component) {
             const combined = (flux + ' ' + component).toLowerCase();
             if (combined.includes('kafka') || combined.includes('event') || combined.includes('mq') || combined.includes('queue')) {
-                return { color: '#f57c00', dashes: true, width: 2.5 }; // Orange dashed
+                return { color: '#f57c00', dashes: true, width: 2.5, proto: 'kafka' };
             } else if (combined.includes('sql') || combined.includes('db') || combined.includes('jdbc') || combined.includes('postgres')) {
-                return { color: '#388e3c', dashes: false, width: 2.5 }; // Green solid
+                return { color: '#388e3c', dashes: false, width: 2.5, proto: 'sql' };
             } else if (combined.includes('grpc') || combined.includes('proto')) {
-                return { color: '#7b1fa2', dashes: [4, 4], width: 2.5 }; // Purple dotted
-            } else if (combined.includes('rest') || combined.includes('http') || combined.includes('api')) {
-                return { color: '#0288d1', dashes: false, width: 2.5 }; // Blue solid
+                return { color: '#7b1fa2', dashes: [4, 4], width: 2.5, proto: 'grpc' };
             } else {
-                return { color: '#64748b', dashes: false, width: 2 }; // Default Slate grey
+                return { color: '#0288d1', dashes: false, width: 2.5, proto: 'rest' };
             }
         }
 
-        // Build Vis.js DataSet
         const nodesArray = [];
         nodeMap.forEach((val, key) => {
             const style = getNodeIconAndStyle(key, val.type);
@@ -742,6 +827,7 @@
                 from: e.from,
                 to: e.to,
                 label: labelText,
+                protocolType: protoStyle.proto,
                 arrows: { to: { enabled: true, scaleFactor: 0.9 } },
                 font: { align: 'horizontal', size: 11, color: '#334155', strokeWidth: 3, strokeColor: '#ffffff', face: 'sans-serif' },
                 color: { color: protoStyle.color, highlight: '#d32f2f' },
@@ -756,12 +842,8 @@
 
         const data = { nodes: visNodesDataSet, edges: visEdgesDataSet };
         const options = {
-            nodes: {
-                shadow: true
-            },
-            edges: {
-                shadow: false
-            },
+            nodes: { shadow: true },
+            edges: { shadow: false },
             physics: {
                 enabled: true,
                 solver: 'forceAtlas2Based',
@@ -784,6 +866,7 @@
         visNetwork = new vis.Network(container, data, options);
 
         visNetwork.on('selectNode', function (params) {
+            hideContextMenu();
             if (params.nodes.length > 0) {
                 const selectedNodeId = params.nodes[0];
                 performImpactAnalysis(selectedNodeId);
@@ -791,13 +874,192 @@
         });
 
         visNetwork.on('deselectNode', function () {
+            hideContextMenu();
             resetImpactAnalysis();
+        });
+
+        // Context menu listener
+        visNetwork.on('oncontext', function (params) {
+            params.event.preventDefault();
+            const nodeId = visNetwork.getNodeAt(params.pointer.DOM);
+            if (nodeId) {
+                selectedContextNodeId = nodeId;
+                showContextMenu(params.event.clientX, params.event.clientY);
+            } else {
+                hideContextMenu();
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('#vis-context-menu')) {
+                hideContextMenu();
+            }
         });
     }
 
-    function toggleVisPhysics(enabled) {
-        if (visNetwork) {
-            visNetwork.setOptions({ physics: { enabled: enabled } });
+    /* Layout Switcher */
+    function changeVisLayout(layoutType) {
+        if (!visNetwork) return;
+
+        if (layoutType === 'physics') {
+            visNetwork.setOptions({
+                layout: { hierarchical: { enabled: false } },
+                physics: {
+                    enabled: true,
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -120,
+                        centralGravity: 0.01,
+                        springLength: 180,
+                        springConstant: 0.08,
+                        avoidOverlap: 1
+                    }
+                }
+            });
+        } else if (layoutType === 'hierarchical-LR') {
+            visNetwork.setOptions({
+                physics: { enabled: false },
+                layout: {
+                    hierarchical: {
+                        enabled: true,
+                        direction: 'LR',
+                        sortMethod: 'directed',
+                        nodeSpacing: 160,
+                        levelSeparation: 220
+                    }
+                }
+            });
+        } else if (layoutType === 'hierarchical-TD') {
+            visNetwork.setOptions({
+                physics: { enabled: false },
+                layout: {
+                    hierarchical: {
+                        enabled: true,
+                        direction: 'UD',
+                        sortMethod: 'directed',
+                        nodeSpacing: 180,
+                        levelSeparation: 180
+                    }
+                }
+            });
+        }
+        setTimeout(() => visNetwork.fit(), 300);
+    }
+
+    /* Search and Focus Node */
+    function searchAndFocusVisNode(event) {
+        if (event.key === 'Enter') {
+            executeVisSearch();
+        }
+    }
+
+    function executeVisSearch() {
+        if (!visNetwork || !visNodesDataSet) return;
+        const term = document.getElementById('vis-search-input').value.toLowerCase().trim();
+        if (!term) return;
+
+        const allNodes = visNodesDataSet.get();
+        const matched = allNodes.find(n => n.id.toLowerCase().includes(term) || n.label.toLowerCase().includes(term));
+
+        if (matched) {
+            visNetwork.focus(matched.id, {
+                scale: 1.3,
+                animation: { duration: 800, easingFunction: 'easeInOutQuad' }
+            });
+            visNetwork.selectNodes([matched.id]);
+            performImpactAnalysis(matched.id);
+        } else {
+            alert('Aucun nœud correspondant à : ' + term);
+        }
+    }
+
+    /* Protocol Edge Filtering */
+    function filterVisEdgesByProtocol() {
+        if (!visEdgesDataSet) return;
+
+        const restChecked = document.getElementById('proto-rest').checked;
+        const kafkaChecked = document.getElementById('proto-kafka').checked;
+        const sqlChecked = document.getElementById('proto-sql').checked;
+        const grpcChecked = document.getElementById('proto-grpc').checked;
+
+        const allEdges = visEdgesDataSet.get();
+        const updatedEdges = allEdges.map(edge => {
+            const proto = edge.protocolType || 'rest';
+            let hidden = false;
+
+            if (proto === 'rest' && !restChecked) hidden = true;
+            if (proto === 'kafka' && !kafkaChecked) hidden = true;
+            if (proto === 'sql' && !sqlChecked) hidden = true;
+            if (proto === 'grpc' && !grpcChecked) hidden = true;
+
+            return { ...edge, hidden: hidden };
+        });
+
+        visEdgesDataSet.update(updatedEdges);
+    }
+
+    /* Fullscreen Mode */
+    function toggleVisFullscreen() {
+        const container = document.getElementById('visjs-network-container');
+        if (!container) return;
+
+        container.classList.toggle('vis-fullscreen');
+        const btn = document.getElementById('vis-fullscreen-btn');
+        if (container.classList.contains('vis-fullscreen')) {
+            if (btn) btn.innerHTML = '🗗 Quitter Plein Écran';
+        } else {
+            if (btn) btn.innerHTML = '⛶ Plein Écran';
+        }
+        setTimeout(() => visNetwork && visNetwork.fit(), 200);
+    }
+
+    /* Context Menu Functions */
+    function showContextMenu(x, y) {
+        const menu = document.getElementById('vis-context-menu');
+        if (!menu) return;
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.style.display = 'block';
+    }
+
+    function hideContextMenu() {
+        const menu = document.getElementById('vis-context-menu');
+        if (menu) menu.style.display = 'none';
+    }
+
+    function contextActionImpact() {
+        hideContextMenu();
+        if (selectedContextNodeId) {
+            visNetwork.selectNodes([selectedContextNodeId]);
+            performImpactAnalysis(selectedContextNodeId);
+        }
+    }
+
+    function contextActionFocus() {
+        hideContextMenu();
+        if (selectedContextNodeId) {
+            visNetwork.focus(selectedContextNodeId, {
+                scale: 1.4,
+                animation: { duration: 600, easingFunction: 'easeInOutQuad' }
+            });
+        }
+    }
+
+    function contextActionHide() {
+        hideContextMenu();
+        if (selectedContextNodeId && visNodesDataSet) {
+            visNodesDataSet.update({ id: selectedContextNodeId, hidden: true });
+        }
+    }
+
+    function contextActionCopy() {
+        hideContextMenu();
+        if (selectedContextNodeId) {
+            navigator.clipboard.writeText(selectedContextNodeId).then(() => {
+                alert('Nom du nœud copié : ' + selectedContextNodeId);
+            }).catch(() => {
+                prompt('Nom du nœud :', selectedContextNodeId);
+            });
         }
     }
 
@@ -807,17 +1069,14 @@
         const newScale = scale * factor;
         visNetwork.moveTo({
             scale: newScale,
-            animation: {
-                duration: 200,
-                easingFunction: 'easeInOutQuad'
-            }
+            animation: { duration: 200, easingFunction: 'easeInOutQuad' }
         });
     }
 
     function performImpactAnalysis(startNodeId) {
         if (!rawEdgesData || rawEdgesData.length === 0) return;
 
-        // BFS Downstream (Impacted Targets)
+        // BFS Downstream
         const downstreamNodes = new Set();
         const downstreamEdges = new Set();
         const queueDown = [startNodeId];
@@ -835,7 +1094,7 @@
             });
         }
 
-        // BFS Upstream (Dependencies / Sources)
+        // BFS Upstream
         const upstreamNodes = new Set();
         const upstreamEdges = new Set();
         const queueUp = [startNodeId];
@@ -844,7 +1103,7 @@
             const current = queueUp.shift();
             rawEdgesData.forEach(e => {
                 if (e.to === current) {
-                    upstreamEdges.add(e.id);
+                    upstreamEdges.add(e.from);
                     if (!upstreamNodes.has(e.from) && e.from !== startNodeId) {
                         upstreamNodes.add(e.from);
                         queueUp.push(e.from);
@@ -928,7 +1187,6 @@
             </div>
         `;
 
-        // Downstream Impact
         html += `
             <div class="mb-3">
                 <h6 class="text-danger small fw-bold mb-2 d-flex justify-content-between align-items-center">
@@ -950,7 +1208,6 @@
         }
         html += `</div>`;
 
-        // Upstream Dependencies
         html += `
             <div class="mb-3">
                 <h6 class="text-primary small fw-bold mb-2 d-flex justify-content-between align-items-center">
@@ -978,7 +1235,6 @@
     function resetImpactAnalysis() {
         if (!visNodesDataSet || !visEdgesDataSet) return;
 
-        // Restore node colors
         const tableRows = document.querySelectorAll('#edges-table tbody tr');
         const nodeTypes = new Map();
 
@@ -1021,10 +1277,8 @@
                 return '#388e3c';
             } else if (combined.includes('grpc') || combined.includes('proto')) {
                 return '#7b1fa2';
-            } else if (combined.includes('rest') || combined.includes('http') || combined.includes('api')) {
-                return '#0288d1';
             } else {
-                return '#64748b';
+                return '#0288d1';
             }
         }
 
@@ -1041,22 +1295,14 @@
                     highlight: { background: '#ffecb3', border: '#ff6f00' }
                 },
                 borderWidth: 2,
-                opacity: 1
+                opacity: 1,
+                hidden: false
             };
         });
         visNodesDataSet.update(resetNodes);
 
-        // Restore edges
-        const allEdges = visEdgesDataSet.get();
-        const resetEdges = allEdges.map(edge => ({
-            ...edge,
-            color: { color: getEdgeColor(edge), highlight: '#d32f2f' },
-            width: 2.5,
-            opacity: 1
-        }));
-        visEdgesDataSet.update(resetEdges);
+        filterVisEdgesByProtocol();
 
-        // Clear UI Panel
         const body = document.getElementById('impact-panel-body');
         const badge = document.getElementById('impact-badge-total');
         if (badge) badge.textContent = `0 nœuds`;
