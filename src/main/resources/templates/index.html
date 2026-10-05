@@ -323,8 +323,8 @@
                                 <h5 class="mb-0">🌐 Visualisation Interactive Vis.js (Drag & Drop + Dynamic Impact)</h5>
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-light" id="vis-zoom-in" onclick="if(visNetwork) visNetwork.zoomIn();" title="Zoom avant">🔍 +</button>
-                                        <button type="button" class="btn btn-outline-light" id="vis-zoom-out" onclick="if(visNetwork) visNetwork.zoomOut();" title="Zoom arrière">🔍 -</button>
+                                        <button type="button" class="btn btn-outline-light" id="vis-zoom-in" onclick="zoomVisNetwork(1.2)" title="Zoom avant">🔍 +</button>
+                                        <button type="button" class="btn btn-outline-light" id="vis-zoom-out" onclick="zoomVisNetwork(0.8)" title="Zoom arrière">🔍 -</button>
                                         <button type="button" class="btn btn-outline-light" id="vis-fit" onclick="if(visNetwork) visNetwork.fit();" title="Ajuster la vue">🎯 Ajuster</button>
                                     </div>
                                     <div class="form-check form-switch m-0 text-white ms-2">
@@ -766,10 +766,11 @@
                 enabled: true,
                 solver: 'forceAtlas2Based',
                 forceAtlas2Based: {
-                    gravitationalConstant: -50,
+                    gravitationalConstant: -120,
                     centralGravity: 0.01,
-                    springLength: 100,
-                    springConstant: 0.08
+                    springLength: 180,
+                    springConstant: 0.08,
+                    avoidOverlap: 1
                 }
             },
             interaction: {
@@ -798,6 +799,19 @@
         if (visNetwork) {
             visNetwork.setOptions({ physics: { enabled: enabled } });
         }
+    }
+
+    function zoomVisNetwork(factor) {
+        if (!visNetwork) return;
+        const scale = visNetwork.getScale();
+        const newScale = scale * factor;
+        visNetwork.moveTo({
+            scale: newScale,
+            animation: {
+                duration: 200,
+                easingFunction: 'easeInOutQuad'
+            }
+        });
     }
 
     function performImpactAnalysis(startNodeId) {
