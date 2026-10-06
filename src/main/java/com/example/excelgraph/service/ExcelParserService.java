@@ -96,11 +96,11 @@ public class ExcelParserService {
                     Row row = rowIterator.next();
                     if (row == null) continue;
 
-                    List<String> procs = splitCellValues(getCellValueAsString(row.getCell(procCol)));
-                    List<String> subProcs = splitCellValues(getCellValueAsString(row.getCell(subProcCol)));
-                    List<String> acts = splitCellValues(getCellValueAsString(row.getCell(actCol)));
-                    List<String> apps = splitCellValues(getCellValueAsString(row.getCell(appCol)));
-                    List<String> comps = splitCellValues(getCellValueAsString(row.getCell(compColProc)));
+                    List<String> procs = splitCellValues(getSafeCellValue(row, procCol));
+                    List<String> subProcs = splitCellValues(getSafeCellValue(row, subProcCol));
+                    List<String> acts = splitCellValues(getSafeCellValue(row, actCol));
+                    List<String> apps = splitCellValues(getSafeCellValue(row, appCol));
+                    List<String> comps = splitCellValues(getSafeCellValue(row, compColProc));
 
                     // 1. Processus -> Sous-processus
                     for (String p : procs) {
@@ -157,10 +157,10 @@ public class ExcelParserService {
                     Row row = rowIterator.next();
                     if (row == null) continue;
 
-                    String source = getCellValueAsString(row.getCell(sourceCol));
-                    String flux = getCellValueAsString(row.getCell(fluxCol));
-                    String destination = getCellValueAsString(row.getCell(destCol));
-                    String component = getCellValueAsString(row.getCell(compColFlow));
+                    String source = getSafeCellValue(row, sourceCol);
+                    String flux = getSafeCellValue(row, fluxCol);
+                    String destination = getSafeCellValue(row, destCol);
+                    String component = getSafeCellValue(row, compColFlow);
 
                     if (!destination.trim().isEmpty()) {
                         if (!source.isEmpty() || !destination.isEmpty()) {
@@ -169,7 +169,7 @@ public class ExcelParserService {
                     } else {
                         boolean addedFromExterne = false;
                         for (int extCol : externeCols) {
-                            String extDest = getCellValueAsString(row.getCell(extCol));
+                            String extDest = getSafeCellValue(row, extCol);
                             if (!extDest.trim().isEmpty()) {
                                 uniqueEdges.add(new GraphEdge(source, flux, extDest, component, true));
                                 addedFromExterne = true;
@@ -198,6 +198,11 @@ public class ExcelParserService {
             }
         }
         return list;
+    }
+
+    private String getSafeCellValue(Row row, int colIndex) {
+        if (row == null || colIndex < 0) return "";
+        return getCellValueAsString(row.getCell(colIndex));
     }
 
     private String getCellValueAsString(Cell cell) {
