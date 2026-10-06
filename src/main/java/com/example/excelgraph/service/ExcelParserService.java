@@ -26,10 +26,10 @@ public class ExcelParserService {
     }
 
     public List<GraphEdge> parseExcel(InputStream inputStream, int sheetIndex) throws Exception {
-        List<GraphEdge> edges = new ArrayList<>();
+        Set<GraphEdge> uniqueEdges = new LinkedHashSet<>();
         try (Workbook workbook = WorkbookFactory.create(inputStream)) {
             int totalSheets = workbook.getNumberOfSheets();
-            if (totalSheets == 0) return edges;
+            if (totalSheets == 0) return new ArrayList<>();
 
             if (sheetIndex < 0 || sheetIndex >= totalSheets) {
                 sheetIndex = 0;
@@ -37,70 +37,167 @@ public class ExcelParserService {
 
             Sheet sheet = workbook.getSheetAt(sheetIndex);
             if (sheet == null || sheet.getPhysicalNumberOfRows() == 0) {
-                return edges;
+                return new ArrayList<>();
             }
 
             Iterator<Row> rowIterator = sheet.iterator();
             if (!rowIterator.hasNext()) {
-                return edges;
+                return new ArrayList<>();
             }
 
             Row headerRow = rowIterator.next();
+
+            int procCol = -1;
+            int subProcCol = -1;
+            int actCol = -1;
+            int appCol = -1;
+            int compColProc = -1;
+
             int sourceCol = -1;
             int fluxCol = -1;
             int destCol = -1;
-            int compCol = -1;
+            int compColFlow = -1;
             List<Integer> externeCols = new ArrayList<>();
 
             for (Cell cell : headerRow) {
                 String val = getCellValueAsString(cell).toLowerCase(Locale.ROOT).trim();
+
+                // Check Processus format headers
+                if (val.contains("sous") && (val.contains("proc") || val.contains("processus"))) {
+                    subProcCol = cell.getColumnIndex();
+                } else if (val.contains("processus") || val.contains("proc")) {
+                    procCol = cell.getColumnIndex();
+                } else if (val.contains("activit") || val.contains("action") || val.contains("tâche") || val.contains("tache")) {
+                    actCol = cell.getColumnIndex();
+                } else if (val.contains("application") || val.contains("appli") || val.contains("logiciel") || val.contains("système")) {
+                    appCol = cell.getColumnIndex();
+                }
+
+                // Check Flow format headers
                 if (val.contains("source") || val.contains("src") || val.contains("origine")) {
                     sourceCol = cell.getColumnIndex();
-                } else if (val.contains("flux") || val.contains("label") || val.contains("libelle") || val.contains("flow") || val.contains("nom")) {
+                } else if (val.contains("flux") || val.contains("label") || val.contains("libelle") || val.contains("flow")) {
                     fluxCol = cell.getColumnIndex();
                 } else if (val.contains("dest") || val.contains("cible") || val.contains("target")) {
                     destCol = cell.getColumnIndex();
-                } else if (val.contains("comp") || val.contains("techno") || val.contains("proto") || val.contains("outil") || val.contains("moyen")) {
-                    compCol = cell.getColumnIndex();
+                } else if (val.contains("comp") || val.contains("techno") || val.contains("proto") || val.contains("outil")) {
+                    compColFlow = cell.getColumnIndex();
+                    compColProc = cell.getColumnIndex();
                 } else if (val.contains("externe") && externeCols.size() < 15) {
                     externeCols.add(cell.getColumnIndex());
                 }
             }
 
-            if (sourceCol == -1) sourceCol = 0;
-            if (fluxCol == -1) fluxCol = 1;
-            if (destCol == -1) destCol = 2;
-            if (compCol == -1) compCol = 3;
+            boolean isProcessusFormat = (procCol != -1 || actCol != -1) && (appCol != -1 || subProcCol != -1 || actCol != -1);
 
-            while (rowIterator.hasNext()) {
-                Row row = rowIterator.next();
-                if (row == null) continue;
+            if (isProcessusFormat) {
+                // Parse as Processus / Activités / Applications format
+                while (rowIterator.hasNext()) {
+                    Row row = rowIterator.next();
+                    if (row == null) continue;
 
-                String source = getCellValueAsString(row.getCell(sourceCol));
-                String flux = getCellValueAsString(row.getCell(fluxCol));
-                String destination = getCellValueAsString(row.getCell(destCol));
-                String component = getCellValueAsString(row.getCell(compCol));
+                    List<String> procs = splitCellValues(getCellValueAsString(row.getCell(procCol)));
+                    List<String> subProcs = splitCellValues(getCellValueAsString(row.getCell(subProcCol)));
+                    List<String> acts = splitCellValues(getCellValueAsString(row.getCell(actCol)));
+                    List<String> apps = splitCellValues(getCellValueAsString(row.getCell(appCol)));
+                    List<String> comps = splitCellValues(getCellValueAsString(row.getCell(compColProc)));
 
-                if (!destination.trim().isEmpty()) {
-                    if (!source.isEmpty() || !destination.isEmpty()) {
-                        edges.add(new GraphEdge(source, flux, destination, component, false));
-                    }
-                } else {
-                    boolean addedFromExterne = false;
-                    for (int extCol : externeCols) {
-                        String extDest = getCellValueAsString(row.getCell(extCol));
-                        if (!extDest.trim().isEmpty()) {
-                            edges.add(new GraphEdge(source, flux, extDest, component, true));
-                            addedFromExterne = true;
+                    // 1. Processus -> Sous-processus
+                    for (String p : procs) {
+                        for (String sp : subProcs) {
+                            uniqueEdges.add(new GraphEdge(p, "Sous-processus", sp, "Processus", false));
                         }
                     }
-                    if (!addedFromExterne && (!source.isEmpty() || !flux.isEmpty())) {
-                        edges.add(new GraphEdge(source, flux, "", component, false));
+
+                    // 2. Processus / Sous-processus -> Activité
+                    for (String act : acts) {
+                        if (!subProcs.isEmpty()) {
+                            for (String sp : subProcs) {
+                                uniqueEdges.add(new GraphEdge(sp, "Exécute", act, "Activité", false));
+                            }
+                        } else if (!procs.isEmpty()) {
+                            for (String p : procs) {
+                                uniqueEdges.add(new GraphEdge(p, "Exécute", act, "Activité", false));
+                            }
+                        }
+                    }
+
+                    // 3. Activité / Sous-processus / Processus -> Application
+                    for (String app : apps) {
+                        if (!acts.isEmpty()) {
+                            for (String act : acts) {
+                                uniqueEdges.add(new GraphEdge(act, "Utilise", app, "Application", false));
+                            }
+                        } else if (!subProcs.isEmpty()) {
+                            for (String sp : subProcs) {
+                                uniqueEdges.add(new GraphEdge(sp, "Utilise", app, "Application", false));
+                            }
+                        } else if (!procs.isEmpty()) {
+                            for (String p : procs) {
+                                uniqueEdges.add(new GraphEdge(p, "Utilise", app, "Application", false));
+                            }
+                        }
+                    }
+
+                    // 4. Application -> Composant
+                    for (String app : apps) {
+                        for (String comp : comps) {
+                            uniqueEdges.add(new GraphEdge(app, "Composé de", comp, "Composant", false));
+                        }
+                    }
+                }
+            } else {
+                // Parse as Flow format
+                if (sourceCol == -1) sourceCol = 0;
+                if (fluxCol == -1) fluxCol = 1;
+                if (destCol == -1) destCol = 2;
+                if (compColFlow == -1) compColFlow = 3;
+
+                while (rowIterator.hasNext()) {
+                    Row row = rowIterator.next();
+                    if (row == null) continue;
+
+                    String source = getCellValueAsString(row.getCell(sourceCol));
+                    String flux = getCellValueAsString(row.getCell(fluxCol));
+                    String destination = getCellValueAsString(row.getCell(destCol));
+                    String component = getCellValueAsString(row.getCell(compColFlow));
+
+                    if (!destination.trim().isEmpty()) {
+                        if (!source.isEmpty() || !destination.isEmpty()) {
+                            uniqueEdges.add(new GraphEdge(source, flux, destination, component, false));
+                        }
+                    } else {
+                        boolean addedFromExterne = false;
+                        for (int extCol : externeCols) {
+                            String extDest = getCellValueAsString(row.getCell(extCol));
+                            if (!extDest.trim().isEmpty()) {
+                                uniqueEdges.add(new GraphEdge(source, flux, extDest, component, true));
+                                addedFromExterne = true;
+                            }
+                        }
+                        if (!addedFromExterne && (!source.isEmpty() || !flux.isEmpty())) {
+                            uniqueEdges.add(new GraphEdge(source, flux, "", component, false));
+                        }
                     }
                 }
             }
         }
-        return edges;
+        return new ArrayList<>(uniqueEdges);
+    }
+
+    private List<String> splitCellValues(String cellVal) {
+        if (cellVal == null || cellVal.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        String[] tokens = cellVal.split("[,;\n\r]+");
+        List<String> list = new ArrayList<>();
+        for (String t : tokens) {
+            String trimmed = t.trim();
+            if (!trimmed.isEmpty()) {
+                list.add(trimmed);
+            }
+        }
+        return list;
     }
 
     private String getCellValueAsString(Cell cell) {

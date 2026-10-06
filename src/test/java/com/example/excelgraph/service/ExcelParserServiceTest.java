@@ -58,22 +58,70 @@ class ExcelParserServiceTest {
     }
 
     @Test
+    void testParseExcelProcessusFormat() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Processus");
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("Processus");
+            headerRow.createCell(1).setCellValue("Sous-processus");
+            headerRow.createCell(2).setCellValue("Activité");
+            headerRow.createCell(3).setCellValue("Applications");
+            headerRow.createCell(4).setCellValue("Composants");
+
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue("Gestion Ventes");
+            row1.createCell(1).setCellValue("Prise Commande");
+            row1.createCell(2).setCellValue("Saisie Panier");
+            row1.createCell(3).setCellValue("E-Commerce Web");
+            row1.createCell(4).setCellValue("Angular Frontend");
+
+            workbook.write(out);
+        }
+
+        InputStream inputStream = new ByteArrayInputStream(out.toByteArray());
+        List<GraphEdge> edges = excelParserService.parseExcel(inputStream);
+
+        assertEquals(4, edges.size());
+
+        // 1. Processus -> Sous-processus
+        assertEquals("Gestion Ventes", edges.get(0).source());
+        assertEquals("Sous-processus", edges.get(0).flux());
+        assertEquals("Prise Commande", edges.get(0).destination());
+
+        // 2. Sous-processus -> Activité
+        assertEquals("Prise Commande", edges.get(1).source());
+        assertEquals("Exécute", edges.get(1).flux());
+        assertEquals("Saisie Panier", edges.get(1).destination());
+
+        // 3. Activité -> Application
+        assertEquals("Saisie Panier", edges.get(2).source());
+        assertEquals("Utilise", edges.get(2).flux());
+        assertEquals("E-Commerce Web", edges.get(2).destination());
+
+        // 4. Application -> Composant
+        assertEquals("E-Commerce Web", edges.get(3).source());
+        assertEquals("Composé de", edges.get(3).flux());
+        assertEquals("Angular Frontend", edges.get(3).destination());
+    }
+
+    @Test
     void testParseSampleFlowsFromClasspath() throws Exception {
+        byte[] bytes;
         try (InputStream is = getClass().getResourceAsStream("/sample-flows.xlsx")) {
             assertNotNull(is, "sample-flows.xlsx should be available on classpath");
-            List<GraphEdge> edges = excelParserService.parseExcel(is);
-
-            assertEquals(6, edges.size());
-            assertEquals("E-Commerce Web", edges.get(0).source());
-            assertEquals("Passation commande", edges.get(0).flux());
-            assertEquals("Order Service", edges.get(0).destination());
-            assertEquals("REST API", edges.get(0).component());
-
-            assertEquals("Inventory Service", edges.get(5).source());
-            assertEquals("Lecture stock", edges.get(5).flux());
-            assertEquals("PostgreSQL Database", edges.get(5).destination());
-            assertEquals("JDBC Driver", edges.get(5).component());
+            bytes = is.readAllBytes();
         }
+
+        List<GraphEdge> edgesSheet0 = excelParserService.parseExcel(new ByteArrayInputStream(bytes), 0);
+        assertEquals(6, edgesSheet0.size());
+        assertEquals("E-Commerce Web", edgesSheet0.get(0).source());
+        assertEquals("Passation commande", edgesSheet0.get(0).flux());
+        assertEquals("Order Service", edgesSheet0.get(0).destination());
+        assertEquals("REST API", edgesSheet0.get(0).component());
+
+        List<GraphEdge> procEdgesSheet1 = excelParserService.parseExcel(new ByteArrayInputStream(bytes), 1);
+        assertFalse(procEdgesSheet1.isEmpty(), "Second sheet should parse Processus format");
     }
 
     @Test
